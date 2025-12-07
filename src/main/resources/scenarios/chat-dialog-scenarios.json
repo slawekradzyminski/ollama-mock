@@ -1,0 +1,37 @@
+{
+  "scenarios": [
+    {
+      "prompt": "Give me a quick status update on the Ollama mock",
+      "chunks": [
+        {
+          "thinking": "Reviewing the latest notes about the local mock server..."
+        },
+        {
+          "response": "The Ollama mock is up on port 11434, streaming deterministic responses so backend/frontend teams can skip the heavy container during the local profile."
+        }
+      ]
+    },
+    {
+      "prompt": "How do I switch the backend to this mock?",
+      "chunks": [
+        {
+          "thinking": "Recalling the developer instructions..."
+        },
+        {
+          "response": "Point test-secure-backend's local profile at http://localhost:11434 and keep the existing DTOs; the mock mirrors Ollama's JSON envelope so no other code changes are needed."
+        }
+      ]
+    },
+    {
+      "prompt": "What limitations should I expect from the mock?",
+      "chunks": [
+        {
+          "thinking": "Summarizing the intentionally simplified behavior..."
+        },
+        {
+          "response": "It only understands a curated set of prompts, does not hit real models, and emits canned tool results. Use it for rapid UI/backend testing rather than benchmarking model quality."
+        }
+      ]
+    }
+  ]
+}

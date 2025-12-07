@@ -2,7 +2,6 @@ package com.awesome.testing.ollama.controller;
 
 import com.awesome.testing.ollama.dto.ChatRequestDto;
 import com.awesome.testing.ollama.dto.ChatResponseDto;
-import com.awesome.testing.ollama.service.ChatService;
 import com.awesome.testing.ollama.service.ChatToolsService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,33 +15,23 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping({"/api/chat/tools", "/chat/tools"})
 @RequiredArgsConstructor
-public class OllamaChatController {
+public class OllamaChatToolsController {
 
-    private final ChatService chatService;
     private final ChatToolsService chatToolsService;
 
-    @PostMapping(value = "/chat", consumes = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<Publisher<ChatResponseDto>> chat(@Valid @RequestBody ChatRequestDto request) {
+    @PostMapping(consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Publisher<ChatResponseDto>> chatWithTools(@Valid @RequestBody ChatRequestDto request) {
         boolean streamingEnabled = request.getStream() == null || request.getStream();
         if (streamingEnabled) {
-            Publisher<ChatResponseDto> publisher = requiresTools(request)
-                    ? chatToolsService.chatToolStream(request)
-                    : chatService.chatStream(request);
             return ResponseEntity.ok()
                     .contentType(MediaType.APPLICATION_NDJSON)
-                    .body(publisher);
+                    .body(chatToolsService.chatToolStream(request));
         }
-        Mono<ChatResponseDto> single = requiresTools(request)
-                ? chatToolsService.chatToolSingle(request)
-                : chatService.chatSingle(request);
+        Mono<ChatResponseDto> single = chatToolsService.chatToolSingle(request);
         return ResponseEntity.ok()
                 .contentType(MediaType.APPLICATION_JSON)
                 .body(single);
-    }
-
-    private boolean requiresTools(ChatRequestDto request) {
-        return request.getTools() != null && !request.getTools().isEmpty();
     }
 }

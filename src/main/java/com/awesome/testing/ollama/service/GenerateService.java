@@ -3,77 +3,40 @@ package com.awesome.testing.ollama.service;
 import com.awesome.testing.ollama.config.OllamaMockProperties;
 import com.awesome.testing.ollama.dto.GenerateResponseDto;
 import com.awesome.testing.ollama.dto.StreamedRequestDto;
-import java.time.Duration;
-import java.time.Instant;
+import com.awesome.testing.ollama.scenario.generate.GenerateScenarioDefinition;
+import com.awesome.testing.ollama.scenario.generate.GenerateScenarioRepository;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.concurrent.atomic.AtomicLong;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-@Slf4j
 @Service
 @RequiredArgsConstructor
 public class GenerateService {
 
-    private final ChatClient chatClient;
     private final OllamaMockProperties properties;
+    private final GenerateScenarioRepository scenarioRepository;
 
     public Flux<GenerateResponseDto> generateStream(StreamedRequestDto request) {
         String model = resolveModel(request.getModel());
-        Instant start = Instant.now();
-        AtomicLong chunkCounter = new AtomicLong();
-
-        Flux<GenerateResponseDto> thinkingFlux = Boolean.TRUE.equals(request.getThink())
-                ? Flux.just(buildThinkingChunk(model, OffsetDateTime.ofInstant(start, ZoneOffset.UTC)))
-                : Flux.empty();
-
-        Flux<GenerateResponseDto> responseFlux = chatClient.prompt()
-                .user(request.getPrompt())
-                .stream()
-                .content()
-                .filter(StringUtils::hasText)
-                .map(chunk -> buildChunk(
-                        model,
-                        OffsetDateTime.now(ZoneOffset.UTC),
-                        chunk,
-                        false,
-                        null))
-                .doOnNext(chunk -> chunkCounter.incrementAndGet());
-
-        Mono<GenerateResponseDto> completion = Mono.fromSupplier(() -> {
-            Instant end = Instant.now();
-            return buildChunk(
-                    model,
-                    OffsetDateTime.ofInstant(end, ZoneOffset.UTC),
-                    "",
-                    true,
-                    Duration.between(start, end).toNanos());
-        });
-
-        return Flux.concat(thinkingFlux, responseFlux, completion)
-                .doOnComplete(() -> log.info("Generated {} chunk(s) for model {}", chunkCounter.get(), model));
+        List<GenerateResponseDto> chunks = scenarioRepository.findByPrompt(request.getPrompt())
+                .map(scenario -> buildScenarioChunks(model, scenario))
+                .orElseGet(() -> List.of(unsupportedPromptChunk(model, false)));
+        return Flux.fromIterable(chunks)
+                .concatWithValues(doneChunk(model));
     }
 
     public Mono<GenerateResponseDto> generateSingle(StreamedRequestDto request) {
         String model = resolveModel(request.getModel());
-        Instant start = Instant.now();
-
-        return Mono.fromSupplier(() -> chatClient.prompt()
-                        .user(request.getPrompt())
-                        .call()
-                        .content())
-                .map(content -> buildChunk(
-                        model,
-                        OffsetDateTime.now(ZoneOffset.UTC),
-                        content,
-                        true,
-                        Duration.between(start, Instant.now()).toNanos()));
+        return scenarioRepository.findByPrompt(request.getPrompt())
+                .map(scenario -> Mono.just(selectSingleChunk(model, scenario)))
+                .orElseGet(() -> Mono.just(unsupportedPromptChunk(model, true)));
     }
 
     private String resolveModel(String requestedModel) {
@@ -83,26 +46,74 @@ public class GenerateService {
         return properties.getDefaultModel();
     }
 
-    private GenerateResponseDto buildThinkingChunk(String model, OffsetDateTime timestamp) {
+    private List<GenerateResponseDto> buildScenarioChunks(String model, GenerateScenarioDefinition scenario) {
+        List<GenerateResponseDto> outputs = new ArrayList<>();
+        scenario.getChunks().forEach(chunk -> {
+            if (StringUtils.hasText(chunk.getThinking())) {
+                outputs.add(thinkingChunk(model, chunk.getThinking()));
+            }
+            if (StringUtils.hasText(chunk.getResponse())) {
+                outputs.add(responseChunk(model, chunk.getResponse(), false));
+            }
+        });
+        return outputs;
+    }
+
+    private GenerateResponseDto selectSingleChunk(String model, GenerateScenarioDefinition scenario) {
+        List<com.awesome.testing.ollama.scenario.generate.GenerateScenarioChunkDefinition> chunks =
+                new ArrayList<>(scenario.getChunks());
+        Collections.reverse(chunks);
+        for (var chunk : chunks) {
+            if (StringUtils.hasText(chunk.getResponse())) {
+                return responseChunk(model, chunk.getResponse(), true);
+            }
+        }
+        return responseChunk(
+                model,
+                "This scenario does not have a final response configured yet.",
+                true);
+    }
+
+    private GenerateResponseDto unsupportedPromptChunk(String model, boolean done) {
+        String message = formatSupportedPromptMessage("Sorry, only these prompts are supported for this endpoint:");
+        return responseChunk(model, message, done);
+    }
+
+    private String formatSupportedPromptMessage(String prefix) {
+        List<String> prompts = scenarioRepository.supportedPrompts();
+        if (prompts.isEmpty()) {
+            return prefix + " (no scenarios configured)";
+        }
+        String joined = prompts.stream()
+                .map(entry -> "- " + entry)
+                .reduce((a, b) -> a + "\n" + b)
+                .orElse("");
+        return prefix + "\n" + joined;
+    }
+
+    private GenerateResponseDto thinkingChunk(String model, String thought) {
         return GenerateResponseDto.builder()
                 .model(model)
-                .createdAt(timestamp.toString())
-                .thinking("Analyzing your prompt before generating a response...")
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC).toString())
+                .thinking(thought)
                 .done(false)
                 .build();
     }
 
-    private GenerateResponseDto buildChunk(String model,
-                                           OffsetDateTime timestamp,
-                                           String content,
-                                           boolean done,
-                                           Long totalDuration) {
+    private GenerateResponseDto responseChunk(String model, String content, boolean done) {
         return GenerateResponseDto.builder()
                 .model(model)
-                .createdAt(timestamp.toString())
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC).toString())
                 .response(content)
                 .done(done)
-                .totalDuration(totalDuration)
+                .build();
+    }
+
+    private GenerateResponseDto doneChunk(String model) {
+        return GenerateResponseDto.builder()
+                .model(model)
+                .createdAt(OffsetDateTime.now(ZoneOffset.UTC).toString())
+                .done(true)
                 .build();
     }
 }

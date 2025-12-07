@@ -1,0 +1,23 @@
+{
+  "scenarios": [
+    {
+      "prompt": "Summarize the release plan",
+      "chunks": [
+        {
+          "thinking": "Reviewing the release checklist before drafting the summary..."
+        },
+        {
+          "response": "Release plan: mock Ollama service ready for local profile, frontend hooks can stay untouched, and integration smoke test is scheduled after Phase 4. Ping me if you need more depth."
+        }
+      ]
+    },
+    {
+      "prompt": "Provide a motivational quote",
+      "chunks": [
+        {
+          "response": "Keep shipping mock services — momentum beats perfection."
+        }
+      ]
+    }
+  ]
+}

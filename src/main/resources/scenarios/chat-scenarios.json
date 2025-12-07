@@ -1,0 +1,134 @@
+{
+  "scenarios": [
+    {
+      "name": "iphone-catalog",
+      "prompt": "What iphones do we have available? Tell me the details about them",
+      "stages": [
+        {
+          "trigger": "user",
+          "toolCall": {
+            "name": "list_products",
+            "arguments": {
+              "category": "electronics",
+              "inStockOnly": true,
+              "limit": 25
+            }
+          }
+        },
+        {
+          "trigger": "tool",
+          "toolName": "list_products",
+          "toolCall": {
+            "name": "get_product_snapshot",
+            "arguments": {
+              "productId": 1
+            }
+          }
+        },
+        {
+          "trigger": "tool",
+          "toolName": "get_product_snapshot",
+          "response": "According to the catalog we currently have: iPhone 13 Pro and Samsung Galaxy S21. Snapshot for iPhone 13 Pro: priced at $999 with 5 unit(s) in stock."
+        }
+      ]
+    },
+    {
+      "name": "beauty-catalog",
+      "prompt": "What Beauty products do we have available?",
+      "stages": [
+        {
+          "trigger": "user",
+          "toolCall": {
+            "name": "list_products",
+            "arguments": {
+              "category": "beauty",
+              "inStockOnly": true,
+              "limit": 25
+            }
+          }
+        },
+        {
+          "trigger": "tool",
+          "toolName": "list_products",
+          "response": "The beauty shelf currently offers: Hydrating Face Serum and Velvet Matte Lipstick. Let me know if you want pricing for either product."
+        }
+      ]
+    },
+    {
+      "name": "smart-home",
+      "prompt": "Do we have any smart home devices in stock?",
+      "stages": [
+        {
+          "trigger": "user",
+          "toolCall": {
+            "name": "list_products",
+            "arguments": {
+              "category": "smart-home",
+              "inStockOnly": true,
+              "limit": 25
+            }
+          }
+        },
+        {
+          "trigger": "tool",
+          "toolName": "list_products",
+          "toolCall": {
+            "name": "get_product_snapshot",
+            "arguments": {
+              "productId": 42
+            }
+          }
+        },
+        {
+          "trigger": "tool",
+          "toolName": "get_product_snapshot",
+          "response": "Smart home picks: Aurora Smart Thermostat plus the Luma Light Starter Kit. Thermostat snapshot shows $249 with same-day fulfillment, so you can quote that confidently."
+        }
+      ]
+    },
+    {
+      "name": "laptops-budget",
+      "prompt": "List the laptops under $1500.",
+      "stages": [
+        {
+          "trigger": "user",
+          "toolCall": {
+            "name": "list_products",
+            "arguments": {
+              "category": "laptops",
+              "maxPrice": 1500,
+              "limit": 25
+            }
+          }
+        },
+        {
+          "trigger": "tool",
+          "toolName": "list_products",
+          "response": "Budget-friendly laptops: FalconBook 14 ($1299) and Apex Ultralight 15 ($1399). Both include 16GB RAM and fast NVMe storage, ready to reserve."
+        }
+      ]
+    },
+    {
+      "name": "gaming-accessories",
+      "prompt": "What gaming accessories can you recommend?",
+      "stages": [
+        {
+          "trigger": "user",
+          "toolCall": {
+            "name": "list_products",
+            "arguments": {
+              "category": "gaming-accessories",
+              "inStockOnly": true,
+              "limit": 25
+            }
+          }
+        },
+        {
+          "trigger": "tool",
+          "toolName": "list_products",
+          "response": "Players usually pick the Pro Wireless Controller and the Tournament Headset. Both are in stock and ship with the standard two-year support plan."
+        }
+      ]
+    }
+  ]
+}
