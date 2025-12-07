@@ -1,6 +1,6 @@
 package com.awesome.testing.ollama.controller;
 
-import org.springframework.beans.factory.annotation.Value;
+import com.awesome.testing.ollama.config.OllamaMockProperties;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -13,21 +13,17 @@ import java.util.Map;
 @RequestMapping(path = "/api", produces = MediaType.APPLICATION_JSON_VALUE)
 public class OllamaMetadataController {
 
-    private final String version;
-    private final String mockModel;
+    private final OllamaMockProperties properties;
 
-    public OllamaMetadataController(
-            @Value("${ollama.mock.version:0.0.1-local}") String version,
-            @Value("${ollama.mock.default-model:gpt-4o-mini}") String mockModel) {
-        this.version = version;
-        this.mockModel = mockModel;
+    public OllamaMetadataController(OllamaMockProperties properties) {
+        this.properties = properties;
     }
 
     @GetMapping("/version")
     public Map<String, Object> version() {
         return Map.of(
-                "version", version,
-                "mockModel", mockModel,
+                "version", properties.getVersion(),
+                "mockModel", properties.getDefaultModel(),
                 "timestamp", OffsetDateTime.now().toString()
         );
     }
