@@ -28,8 +28,9 @@ public class ChatService {
 
     public Flux<ChatResponseDto> chatStream(ChatRequestDto request) {
         String model = resolveModel(request.getModel());
+        boolean thinkingEnabled = Boolean.TRUE.equals(request.getThink());
         Flux<ChatResponseDto> convo = scenarioRepository.findScenario(request.getMessages())
-                .map(scenario -> Flux.fromIterable(buildChunks(model, scenario)))
+                .map(scenario -> Flux.fromIterable(buildChunks(model, scenario, thinkingEnabled)))
                 .orElseGet(() -> Flux.just(unsupportedPrompt(model)));
         return convo.concatWithValues(doneChunk(model))
                 .delayElements(STREAM_DELAY);
@@ -48,10 +49,12 @@ public class ChatService {
         return properties.getDefaultModel();
     }
 
-    private List<ChatResponseDto> buildChunks(String model, ChatDialogueScenarioDefinition scenario) {
+    private List<ChatResponseDto> buildChunks(String model,
+                                              ChatDialogueScenarioDefinition scenario,
+                                              boolean thinkingEnabled) {
         List<ChatResponseDto> outputs = new ArrayList<>();
         scenario.getChunks().forEach(chunk -> {
-            if (StringUtils.hasText(chunk.getThinking())) {
+            if (thinkingEnabled && StringUtils.hasText(chunk.getThinking())) {
                 outputs.add(thinkingChunk(model, chunk.getThinking()));
             }
             if (StringUtils.hasText(chunk.getResponse())) {

@@ -25,8 +25,9 @@ public class GenerateService {
 
     public Flux<GenerateResponseDto> generateStream(StreamedRequestDto request) {
         String model = resolveModel(request.getModel());
+        boolean thinkingEnabled = Boolean.TRUE.equals(request.getThink());
         List<GenerateResponseDto> chunks = scenarioRepository.findByPrompt(request.getPrompt())
-                .map(scenario -> buildScenarioChunks(model, scenario))
+                .map(scenario -> buildScenarioChunks(model, scenario, thinkingEnabled))
                 .orElseGet(() -> List.of(unsupportedPromptChunk(model, false)));
         return Flux.fromIterable(chunks)
                 .concatWithValues(doneChunk(model));
@@ -46,10 +47,12 @@ public class GenerateService {
         return properties.getDefaultModel();
     }
 
-    private List<GenerateResponseDto> buildScenarioChunks(String model, GenerateScenarioDefinition scenario) {
+    private List<GenerateResponseDto> buildScenarioChunks(String model,
+                                                          GenerateScenarioDefinition scenario,
+                                                          boolean thinkingEnabled) {
         List<GenerateResponseDto> outputs = new ArrayList<>();
         scenario.getChunks().forEach(chunk -> {
-            if (StringUtils.hasText(chunk.getThinking())) {
+            if (thinkingEnabled && StringUtils.hasText(chunk.getThinking())) {
                 outputs.add(thinkingChunk(model, chunk.getThinking()));
             }
             if (StringUtils.hasText(chunk.getResponse())) {

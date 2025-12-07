@@ -7,8 +7,8 @@ import com.awesome.testing.ollama.service.ChatToolsService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -22,9 +22,9 @@ class OllamaChatControllerTest {
     @Autowired
     private WebTestClient webTestClient;
 
-    @MockBean
+    @MockitoBean
     private ChatService chatService;
-    @MockBean
+    @MockitoBean
     private ChatToolsService chatToolsService;
 
     @Test

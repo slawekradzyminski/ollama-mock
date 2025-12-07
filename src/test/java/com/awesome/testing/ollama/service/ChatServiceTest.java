@@ -24,12 +24,13 @@ class ChatServiceTest {
     }
 
     @Test
-    void shouldStreamDialogueScenario() {
+    void shouldStreamDialogueScenarioWithThinking() {
         ChatRequestDto request = ChatRequestDto.builder()
                 .messages(List.of(ChatMessageDto.builder()
                         .role("user")
                         .content("Give me a quick status update on the Ollama mock")
                         .build()))
+                .think(true)
                 .build();
 
         StepVerifier.create(chatService.chatStream(request))
@@ -53,6 +54,25 @@ class ChatServiceTest {
         StepVerifier.create(chatService.chatStream(request))
                 .assertNext(chunk -> assertThat(chunk.getMessage().getContent())
                         .contains("Sorry, only these chat prompts are supported"))
+                .assertNext(chunk -> assertThat(chunk.isDone()).isTrue())
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldSkipThinkingWhenFlagDisabled() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(ChatMessageDto.builder()
+                        .role("user")
+                        .content("Give me a quick status update on the Ollama mock")
+                        .build()))
+                .think(false)
+                .build();
+
+        StepVerifier.create(chatService.chatStream(request))
+                .assertNext(chunk -> {
+                    assertThat(chunk.getMessage().getThinking()).isNull();
+                    assertThat(chunk.getMessage().getContent()).contains("port 11434");
+                })
                 .assertNext(chunk -> assertThat(chunk.isDone()).isTrue())
                 .verifyComplete();
     }

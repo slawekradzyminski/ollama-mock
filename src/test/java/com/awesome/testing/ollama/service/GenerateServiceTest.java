@@ -24,10 +24,11 @@ class GenerateServiceTest {
     }
 
     @Test
-    void shouldStreamScenarioChunks() {
+    void shouldStreamScenarioChunksWhenThinkingEnabled() {
         StreamedRequestDto request = StreamedRequestDto.builder()
                 .model("default-model")
                 .prompt("Summarize the release plan")
+                .think(true)
                 .build();
 
         StepVerifier.create(generateService.generateStream(request))
@@ -63,6 +64,23 @@ class GenerateServiceTest {
                     assertThat(chunk.isDone()).isTrue();
                     assertThat(chunk.getResponse()).contains("Keep shipping mock services");
                 })
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldSkipThinkingChunksWhenDisabled() {
+        StreamedRequestDto request = StreamedRequestDto.builder()
+                .model("default-model")
+                .prompt("Summarize the release plan")
+                .think(false)
+                .build();
+
+        StepVerifier.create(generateService.generateStream(request))
+                .assertNext(chunk -> {
+                    assertThat(chunk.getThinking()).isNull();
+                    assertThat(chunk.getResponse()).contains("mock Ollama service");
+                })
+                .assertNext(chunk -> assertThat(chunk.isDone()).isTrue())
                 .verifyComplete();
     }
 }
