@@ -3,6 +3,7 @@ package com.awesome.testing.ollama.controller;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.awesome.testing.ollama.dto.OllamaToolDefinitionDto;
+import com.awesome.testing.ollama.dto.OllamaToolFunctionDto;
 import com.awesome.testing.ollama.service.ToolDefinitionCatalog;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -26,7 +27,7 @@ class ToolDefinitionControllerTest {
     void shouldExposeToolDefinitions() {
         Mockito.when(catalog.getDefinitions()).thenReturn(List.of(
                 OllamaToolDefinitionDto.builder()
-                        .function(new com.awesome.testing.ollama.dto.OllamaToolFunctionDto())
+                        .function(new OllamaToolFunctionDto())
                         .build()
         ));
 

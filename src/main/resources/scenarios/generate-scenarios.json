@@ -18,6 +18,23 @@
           "response": "Keep shipping mock services — momentum beats perfection."
         }
       ]
+    },
+    {
+      "prompt": "Walk me through the streaming demo for /api/generate",
+      "chunks": [
+        {
+          "thinking": "Constructing a narrated explanation that highlights how each token flows through the pipeline..."
+        },
+        {
+          "response": "Here is the play-by-play: the request lands on /api/generate, the scenario definition feeds a long explanation like this one into the token slicer, and every individual word, comma, and newline becomes its own NDJSON chunk so you can literally watch the sentence assemble itself."
+        },
+        {
+          "response": "To make the effect obvious we keep talking: first the intro paragraph streams, then the middle commentary about configuration knobs, then this closing paragraph reminding you that the behavior mirrors an LLM decoding trace."
+        },
+        {
+          "response": "Grab a terminal, run curl with --no-buffer, and you will see the exact same cadence that shows up in the logs."
+        }
+      ]
     }
   ]
 }

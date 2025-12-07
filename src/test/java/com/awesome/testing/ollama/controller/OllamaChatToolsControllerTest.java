@@ -3,6 +3,7 @@ package com.awesome.testing.ollama.controller;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 
+import com.awesome.testing.ollama.dto.ChatMessageDto;
 import com.awesome.testing.ollama.dto.ChatRequestDto;
 import com.awesome.testing.ollama.dto.ChatResponseDto;
 import com.awesome.testing.ollama.service.ChatToolsService;
@@ -28,7 +29,7 @@ class OllamaChatToolsControllerTest {
     void shouldStreamToolResponsesWithApiPath() {
         ChatResponseDto chunk = ChatResponseDto.builder()
                 .model("mock")
-                .message(new com.awesome.testing.ollama.dto.ChatMessageDto())
+                .message(new ChatMessageDto())
                 .done(false)
                 .build();
         given(chatToolsService.chatToolStream(any())).willReturn(Flux.just(chunk));
@@ -46,7 +47,7 @@ class OllamaChatToolsControllerTest {
     void shouldStreamToolResponsesWithLegacyPath() {
         ChatResponseDto chunk = ChatResponseDto.builder()
                 .model("mock")
-                .message(new com.awesome.testing.ollama.dto.ChatMessageDto())
+                .message(new ChatMessageDto())
                 .done(false)
                 .build();
         given(chatToolsService.chatToolStream(any())).willReturn(Flux.just(chunk));
@@ -64,7 +65,7 @@ class OllamaChatToolsControllerTest {
     void shouldReturnSingleToolChunk() {
         ChatResponseDto response = ChatResponseDto.builder()
                 .model("mock")
-                .message(new com.awesome.testing.ollama.dto.ChatMessageDto())
+                .message(new ChatMessageDto())
                 .done(true)
                 .build();
         given(chatToolsService.chatToolSingle(any())).willReturn(Mono.just(response));

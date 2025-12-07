@@ -13,10 +13,11 @@ Lightweight Spring Boot 3.5.8 service that emulates the Ollama HTTP API for loca
 
 Each scenario file contains deterministic steps. Add or modify prompts by editing the JSON and restarting the app.
 
-### Thinking Flag
+### Thinking Flag & Streaming Delays
 
 - `/api/generate` and `/api/chat` include “thinking” chunks **only** when the request payload sets `"think": true`.
 - `/api/chat/tools` never emits `thinking` to match how tool handlers expect payloads.
+- All responses stream token-by-token with a configurable delay (`ollama.mock.token-delay`, default `150ms`). Tool calls pause for `ollama.mock.tool-call-delay` (default `1s`) before emitting the tool payload to mimic function execution.
 
 ## Running Locally
 
@@ -42,6 +43,19 @@ curl -sN -H 'Content-Type: application/json' \
 curl -sN -H 'Content-Type: application/json' \
   -d '{"messages":[{"role":"user","content":"What iphones do we have available? Tell me the details about them"}],"tools":[{"function":{"name":"list_products"}}]}' \
   http://localhost:11434/api/chat
+
+# Streaming showcase prompts (observe logs for token-by-token output)
+curl -sN -H 'Content-Type: application/json' \
+  -d '{"prompt":"Walk me through the streaming demo for /api/generate","think":true}' \
+  http://localhost:11434/api/generate
+
+curl -sN -H 'Content-Type: application/json' \
+  -d '{"messages":[{"role":"user","content":"Narrate the full streaming timeline for this mock"}],"think":true}' \
+  http://localhost:11434/api/chat
+
+curl -sN -H 'Content-Type: application/json' \
+  -d '{"messages":[{"role":"user","content":"Show me the streaming timeline when a tool call is involved"}],"tools":[{"function":{"name":"list_products"}}]}' \
+  http://localhost:11434/api/chat
 ```
 
 Stop the app with `Ctrl+C` or `kill <PID>`.
@@ -53,6 +67,10 @@ Stop the app with `Ctrl+C` or `kill <PID>`.
 ```
 
 Unit tests cover scenario parsing, controller routing, and the thinking flag behavior for both chat and generate flows.
+
+### Inspecting the Token Stream
+
+`src/main/resources/logback-spring.xml` sets dedicated loggers for the chat/generate/services. When you run the app (`./mvnw spring-boot:run`) and trigger any of the streaming showcase prompts above, the console prints lines such as `[chat-stream][content-token] token text` so you can follow every emitted token without extra tooling. Adjust `ollama.mock.token-delay` / `ollama.mock.tool-call-delay` to speed up or slow down the demonstration.
 
 ## Integrating With Other Projects
 
@@ -83,3 +101,9 @@ Unit tests cover scenario parsing, controller routing, and the thinking flag beh
    - `chat-scenarios.json` for `/api/chat/tools`.
 2. Restart the app (or re-run tests) to load the new scenario.
 3. For tool scenarios, include separate stages for user-triggered tool calls, intermediate tool responses, and final assistant summaries.
+
+## Status & Next Steps
+
+- Core endpoints (`/generate`, `/chat`, `/chat/tools`, `/chat/tools/definitions`, `/version`) stream deterministic tokens with realistic latency controls via `ollama.mock.token-delay` and `ollama.mock.tool-call-delay`.
+- For additional Ollama endpoints (`/api/tags`, `/api/ps`, `/api/delete`, `/api/pull`, `/api/embed`, etc.) extend the controllers/services following the existing pattern when needed.
+- Build/push the Docker image with `./build-multiarch.sh 1.0.0` (or another tag) and update `awesome-localstack/lightweight-docker-compose.yml` to point at the published image.

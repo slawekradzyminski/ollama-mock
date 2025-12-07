@@ -9,41 +9,47 @@ import com.awesome.testing.ollama.dto.ToolCallFunctionDto;
 import com.awesome.testing.ollama.scenario.chat.ChatScenarioDefinition;
 import com.awesome.testing.ollama.scenario.chat.ChatScenarioRepository;
 import com.awesome.testing.ollama.scenario.chat.ChatScenarioStageDefinition;
-import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import com.awesome.testing.ollama.util.TokenStreamUtils;
+import java.time.Duration;
 
 @Service
 @RequiredArgsConstructor
 public class ChatToolsService {
 
-    private static final Duration STREAM_DELAY = Duration.ofMillis(150);
+    private static final Logger log = LoggerFactory.getLogger(ChatToolsService.class);
 
     private final OllamaMockProperties properties;
     private final ChatScenarioRepository scenarioRepository;
 
     public Flux<ChatResponseDto> chatToolStream(ChatRequestDto request) {
         String model = resolveModel(request.getModel());
-        Flux<ChatResponseDto> convo = scenarioRepository.findScenarioForConversation(request.getMessages())
-                .map(scenario -> Flux.fromIterable(buildStageChunks(model, scenario, request)))
-                .orElseGet(() -> Flux.just(unsupportedPromptChunk(model)));
-        return convo.concatWithValues(doneChunk(model))
-                .delayElements(STREAM_DELAY);
+        Flux<ChatResponseDto> conversation = scenarioRepository.findScenarioForConversation(request.getMessages())
+                .map(scenario -> streamStage(model, scenario, request))
+                .orElseGet(() -> streamUnsupportedPrompt(model));
+        return conversation.concatWithValues(doneChunk(model))
+                .concatMap(this::applyAdaptiveDelay);
     }
 
     public Mono<ChatResponseDto> chatToolSingle(ChatRequestDto request) {
-        return chatToolStream(request)
-                .filter(resp -> resp.getMessage() != null && !resp.isDone())
-                .last();
+        String model = resolveModel(request.getModel());
+        return scenarioRepository.findScenarioForConversation(request.getMessages())
+                .map(scenario -> determineStage(scenario, request)
+                        .map(stage -> resolveSingleStageChunk(model, stage))
+                        .orElseGet(() -> unhandledStageChunk(model, scenario.getPrompt())))
+                .map(Mono::just)
+                .orElseGet(() -> Mono.just(unsupportedPromptChunk(model)));
     }
 
     private String resolveModel(String requestedModel) {
@@ -53,20 +59,23 @@ public class ChatToolsService {
         return properties.getDefaultModel();
     }
 
-    private List<ChatResponseDto> buildStageChunks(String model,
-                                                   ChatScenarioDefinition scenario,
-                                                   ChatRequestDto request) {
+    private Flux<ChatResponseDto> streamStage(String model,
+                                              ChatScenarioDefinition scenario,
+                                              ChatRequestDto request) {
         Optional<ChatScenarioStageDefinition> stage = determineStage(scenario, request);
         if (stage.isEmpty()) {
-            return List.of(unhandledStageChunk(model, scenario.getPrompt()));
+            return streamContentTokens(model,
+                    "This step for prompt \"%s\" is not configured yet. Please restart the conversation."
+                            .formatted(scenario.getPrompt()));
         }
-        List<ChatResponseDto> outputs = new ArrayList<>();
         if (stage.get().getToolCall() != null) {
-            outputs.add(toolCallChunk(model, stage.get()));
-        } else if (StringUtils.hasText(stage.get().getResponse())) {
-            outputs.add(contentChunk(model, stage.get().getResponse()));
+            log.info("[chat-tools][call] prompt='{}' issuing {}", scenario.getPrompt(), stage.get().getToolCall().getName());
+            return Flux.just(toolCallChunk(model, stage.get()));
         }
-        return outputs;
+        if (StringUtils.hasText(stage.get().getResponse())) {
+            return streamContentTokens(model, stage.get().getResponse());
+        }
+        return Flux.empty();
     }
 
     private Optional<ChatScenarioStageDefinition> determineStage(ChatScenarioDefinition scenario,
@@ -98,6 +107,10 @@ public class ChatToolsService {
     private ChatResponseDto unsupportedPromptChunk(String model) {
         String content = formatSupportedPromptMessage("Sorry, only these chat tool prompts are supported:");
         return contentChunk(model, content);
+    }
+
+    private Flux<ChatResponseDto> streamUnsupportedPrompt(String model) {
+        return streamContentTokens(model, formatSupportedPromptMessage("Sorry, only these chat tool prompts are supported:"));
     }
 
     private ChatResponseDto unhandledStageChunk(String model, String prompt) {
@@ -157,5 +170,39 @@ public class ChatToolsService {
                 .message(message)
                 .done(false)
                 .build();
+    }
+
+    private Flux<ChatResponseDto> streamContentTokens(String model, String text) {
+        List<String> tokens = TokenStreamUtils.tokenize(text);
+        return Flux.fromIterable(tokens)
+                .doOnSubscribe(sub -> log.info("[chat-tools][content] {} token(s) queued", tokens.size()))
+                .doOnNext(token -> log.info("[chat-tools][content-token] {}", TokenStreamUtils.printable(token)))
+                .map(token -> contentChunk(model, token));
+    }
+
+    private Mono<ChatResponseDto> applyAdaptiveDelay(ChatResponseDto chunk) {
+        Duration delay;
+        if (chunk.isDone()) {
+            delay = Duration.ZERO;
+        } else if (chunk.getMessage() != null && chunk.getMessage().getToolCalls() != null
+                && !chunk.getMessage().getToolCalls().isEmpty()) {
+            delay = properties.getToolCallDelay();
+        } else {
+            delay = properties.getTokenDelay();
+        }
+        if (delay.isZero() || delay.isNegative()) {
+            return Mono.just(chunk);
+        }
+        return Mono.just(chunk).delayElement(delay);
+    }
+
+    private ChatResponseDto resolveSingleStageChunk(String model, ChatScenarioStageDefinition stage) {
+        if (stage.getToolCall() != null) {
+            return toolCallChunk(model, stage);
+        }
+        if (StringUtils.hasText(stage.getResponse())) {
+            return contentChunk(model, stage.getResponse());
+        }
+        return contentChunk(model, "(no response configured for this stage)");
     }
 }

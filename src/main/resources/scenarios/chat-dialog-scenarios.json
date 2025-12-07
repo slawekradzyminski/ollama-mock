@@ -32,6 +32,23 @@
           "response": "It only understands a curated set of prompts, does not hit real models, and emits canned tool results. Use it for rapid UI/backend testing rather than benchmarking model quality."
         }
       ]
+    },
+    {
+      "prompt": "Narrate the full streaming timeline for this mock",
+      "chunks": [
+        {
+          "thinking": "Collecting the internal notes about NDJSON streaming, token delays, and logging so the explanation can unfold in real time..."
+        },
+        {
+          "response": "First you fire a request at /api/chat, the mock inspects the prompt, and as soon as it finds this scenario it logs that the narration is about to stream token by token."
+        },
+        {
+          "response": "Then the thinking paragraph arrives slowly, letting you see each connective phrase trickle to stdout, proving that the simulator behaves like a methodical LLM rather than dumping a single blob."
+        },
+        {
+          "response": "Finally the assistant text you are reading now flows through: it describes the breathing pattern of the stream, reminds you to tail the logs if you want extra proof, and closes by pointing at the /api/chat/tools variant for a tool-driven equivalent."
+        }
+      ]
     }
   ]
 }

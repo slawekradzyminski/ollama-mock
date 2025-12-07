@@ -7,6 +7,7 @@ import com.awesome.testing.ollama.dto.ChatMessageDto;
 import com.awesome.testing.ollama.dto.ChatRequestDto;
 import com.awesome.testing.ollama.scenario.chat.ChatScenarioRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,8 +19,11 @@ class ChatToolsServiceTest {
 
     @BeforeEach
     void setUp() {
+        OllamaMockProperties properties = new OllamaMockProperties();
+        properties.setTokenDelay(Duration.ZERO);
+        properties.setToolCallDelay(Duration.ZERO);
         chatToolsService = new ChatToolsService(
-                new OllamaMockProperties(),
+                properties,
                 new ChatScenarioRepository(new ObjectMapper()));
     }
 
@@ -32,10 +36,12 @@ class ChatToolsServiceTest {
                         .build()))
                 .build();
 
-        StepVerifier.create(chatToolsService.chatToolStream(request))
-                .assertNext(chunk -> assertThat(chunk.getMessage().getToolCalls().get(0).getFunction().getName())
-                        .isEqualTo("list_products"))
-                .assertNext(chunk -> assertThat(chunk.isDone()).isTrue())
+        StepVerifier.create(chatToolsService.chatToolStream(request).collectList())
+                .assertNext(chunks -> {
+                    assertThat(chunks.get(0).getMessage().getToolCalls().get(0).getFunction().getName())
+                            .isEqualTo("list_products");
+                    assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
+                })
                 .verifyComplete();
     }
 
@@ -54,10 +60,12 @@ class ChatToolsServiceTest {
                 .messages(List.of(userMessage, toolMessage))
                 .build();
 
-        StepVerifier.create(chatToolsService.chatToolStream(request))
-                .assertNext(chunk -> assertThat(chunk.getMessage().getToolCalls().get(0).getFunction().getName())
-                        .isEqualTo("get_product_snapshot"))
-                .assertNext(chunk -> assertThat(chunk.isDone()).isTrue())
+        StepVerifier.create(chatToolsService.chatToolStream(request).collectList())
+                .assertNext(chunks -> {
+                    assertThat(chunks.get(0).getMessage().getToolCalls().get(0).getFunction().getName())
+                            .isEqualTo("get_product_snapshot");
+                    assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
+                })
                 .verifyComplete();
     }
 
@@ -80,10 +88,15 @@ class ChatToolsServiceTest {
                 .messages(List.of(userMessage, catalog, snapshot))
                 .build();
 
-        StepVerifier.create(chatToolsService.chatToolStream(request))
-                .assertNext(chunk -> assertThat(chunk.getMessage().getContent())
-                        .contains("iPhone 13 Pro"))
-                .assertNext(chunk -> assertThat(chunk.isDone()).isTrue())
+        StepVerifier.create(chatToolsService.chatToolStream(request).collectList())
+                .assertNext(chunks -> {
+                    String content = chunks.stream()
+                            .filter(chunk -> chunk.getMessage() != null && chunk.getMessage().getContent() != null)
+                            .map(chunk -> chunk.getMessage().getContent())
+                            .reduce("", String::concat);
+                    assertThat(content).contains("iPhone 13 Pro");
+                    assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
+                })
                 .verifyComplete();
     }
 
@@ -96,10 +109,15 @@ class ChatToolsServiceTest {
                         .build()))
                 .build();
 
-        StepVerifier.create(chatToolsService.chatToolStream(request))
-                .assertNext(chunk -> assertThat(chunk.getMessage().getContent())
-                        .contains("Sorry, only these chat tool prompts are supported"))
-                .assertNext(chunk -> assertThat(chunk.isDone()).isTrue())
+        StepVerifier.create(chatToolsService.chatToolStream(request).collectList())
+                .assertNext(chunks -> {
+                    String content = chunks.stream()
+                            .filter(chunk -> chunk.getMessage() != null && chunk.getMessage().getContent() != null)
+                            .map(chunk -> chunk.getMessage().getContent())
+                            .reduce("", String::concat);
+                    assertThat(content).contains("Sorry, only these chat tool prompts are supported");
+                    assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
+                })
                 .verifyComplete();
     }
 }

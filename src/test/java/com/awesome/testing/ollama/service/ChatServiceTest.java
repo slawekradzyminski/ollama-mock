@@ -7,7 +7,9 @@ import com.awesome.testing.ollama.dto.ChatMessageDto;
 import com.awesome.testing.ollama.dto.ChatRequestDto;
 import com.awesome.testing.ollama.scenario.chatbasic.ChatDialogueScenarioRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.time.Duration;
 import java.util.List;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import reactor.test.StepVerifier;
@@ -18,8 +20,10 @@ class ChatServiceTest {
 
     @BeforeEach
     void setUp() {
+        OllamaMockProperties properties = new OllamaMockProperties();
+        properties.setTokenDelay(Duration.ZERO);
         chatService = new ChatService(
-                new OllamaMockProperties(),
+                properties,
                 new ChatDialogueScenarioRepository(new ObjectMapper()));
     }
 
@@ -33,12 +37,22 @@ class ChatServiceTest {
                 .think(true)
                 .build();
 
-        StepVerifier.create(chatService.chatStream(request))
-                .assertNext(chunk -> assertThat(chunk.getMessage().getThinking())
-                        .contains("local mock server"))
-                .assertNext(chunk -> assertThat(chunk.getMessage().getContent())
-                        .contains("port 11434"))
-                .assertNext(chunk -> assertThat(chunk.isDone()).isTrue())
+        StepVerifier.create(chatService.chatStream(request).collectList())
+                .assertNext(chunks -> {
+                    String thinking = chunks.stream()
+                            .filter(chunk -> chunk.getMessage() != null)
+                            .map(chunk -> chunk.getMessage().getThinking())
+                            .filter(content -> content != null)
+                            .collect(Collectors.joining());
+                    String content = chunks.stream()
+                            .filter(chunk -> chunk.getMessage() != null)
+                            .map(chunk -> chunk.getMessage().getContent())
+                            .filter(msg -> msg != null)
+                            .collect(Collectors.joining());
+                    assertThat(thinking).contains("local mock server");
+                    assertThat(content).contains("port 11434");
+                    assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
+                })
                 .verifyComplete();
     }
 
@@ -51,10 +65,16 @@ class ChatServiceTest {
                         .build()))
                 .build();
 
-        StepVerifier.create(chatService.chatStream(request))
-                .assertNext(chunk -> assertThat(chunk.getMessage().getContent())
-                        .contains("Sorry, only these chat prompts are supported"))
-                .assertNext(chunk -> assertThat(chunk.isDone()).isTrue())
+        StepVerifier.create(chatService.chatStream(request).collectList())
+                .assertNext(chunks -> {
+                    String content = chunks.stream()
+                            .filter(chunk -> chunk.getMessage() != null)
+                            .map(chunk -> chunk.getMessage().getContent())
+                            .filter(msg -> msg != null)
+                            .collect(Collectors.joining());
+                    assertThat(content).contains("Sorry, only these chat prompts are supported");
+                    assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
+                })
                 .verifyComplete();
     }
 
@@ -68,12 +88,20 @@ class ChatServiceTest {
                 .think(false)
                 .build();
 
-        StepVerifier.create(chatService.chatStream(request))
-                .assertNext(chunk -> {
-                    assertThat(chunk.getMessage().getThinking()).isNull();
-                    assertThat(chunk.getMessage().getContent()).contains("port 11434");
+        StepVerifier.create(chatService.chatStream(request).collectList())
+                .assertNext(chunks -> {
+                    assertThat(chunks.stream()
+                            .filter(chunk -> chunk.getMessage() != null)
+                            .map(chunk -> chunk.getMessage().getThinking())
+                            .allMatch(thought -> thought == null)).isTrue();
+                    String content = chunks.stream()
+                            .filter(chunk -> chunk.getMessage() != null)
+                            .map(chunk -> chunk.getMessage().getContent())
+                            .filter(msg -> msg != null)
+                            .collect(Collectors.joining());
+                    assertThat(content).contains("port 11434");
+                    assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
                 })
-                .assertNext(chunk -> assertThat(chunk.isDone()).isTrue())
                 .verifyComplete();
     }
 }

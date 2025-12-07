@@ -129,6 +129,38 @@
           "response": "Players usually pick the Pro Wireless Controller and the Tournament Headset. Both are in stock and ship with the standard two-year support plan."
         }
       ]
+    },
+    {
+      "name": "streaming-demo-tools",
+      "prompt": "Show me the streaming timeline when a tool call is involved",
+      "stages": [
+        {
+          "trigger": "user",
+          "toolCall": {
+            "name": "list_products",
+            "arguments": {
+              "category": "electronics",
+              "inStockOnly": true,
+              "limit": 25
+            }
+          }
+        },
+        {
+          "trigger": "tool",
+          "toolName": "list_products",
+          "toolCall": {
+            "name": "get_product_snapshot",
+            "arguments": {
+              "productId": 1
+            }
+          }
+        },
+        {
+          "trigger": "tool",
+          "toolName": "get_product_snapshot",
+          "response": "Here is the narrated finale: once the tool responses arrive, the mock pauses for a beat, then streams a multi-paragraph explanation about how the catalog data and token delays interact so observers can literally watch the assistant spell out the conclusion one token at a time."
+        }
+      ]
     }
   ]
 }

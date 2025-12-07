@@ -7,6 +7,7 @@ import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Primary;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
 @WebFluxTest(controllers = OllamaMetadataController.class)
@@ -31,6 +32,7 @@ class OllamaMetadataControllerTest {
     @TestConfiguration
     static class TestConfig {
         @Bean
+        @Primary
         OllamaMockProperties mockProperties() {
             OllamaMockProperties props = new OllamaMockProperties();
             props.setVersion("0.0.1-test");

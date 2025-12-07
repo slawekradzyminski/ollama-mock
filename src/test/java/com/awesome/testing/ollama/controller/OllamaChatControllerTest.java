@@ -1,7 +1,9 @@
 package com.awesome.testing.ollama.controller;
 
+import com.awesome.testing.ollama.dto.ChatMessageDto;
 import com.awesome.testing.ollama.dto.ChatRequestDto;
 import com.awesome.testing.ollama.dto.ChatResponseDto;
+import com.awesome.testing.ollama.dto.OllamaToolDefinitionDto;
 import com.awesome.testing.ollama.service.ChatService;
 import com.awesome.testing.ollama.service.ChatToolsService;
 import org.junit.jupiter.api.Test;
@@ -12,6 +14,8 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.reactive.server.WebTestClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -31,7 +35,7 @@ class OllamaChatControllerTest {
     void shouldStreamChatResponses() {
         ChatResponseDto chunk = ChatResponseDto.builder()
                 .model("mock")
-                .message(new com.awesome.testing.ollama.dto.ChatMessageDto())
+                .message(new ChatMessageDto())
                 .done(false)
                 .build();
         given(chatService.chatStream(any())).willReturn(Flux.just(chunk));
@@ -39,7 +43,7 @@ class OllamaChatControllerTest {
         webTestClient.post()
                 .uri("/api/chat")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(ChatRequestDto.builder().messages(java.util.List.of()).build())
+                .bodyValue(ChatRequestDto.builder().messages(List.of()).build())
                 .exchange()
                 .expectStatus().isOk()
                 .expectHeader().contentType(MediaType.APPLICATION_NDJSON);
@@ -49,13 +53,13 @@ class OllamaChatControllerTest {
     void shouldStreamToolResponsesWhenToolsPresent() {
         ChatResponseDto chunk = ChatResponseDto.builder()
                 .model("mock")
-                .message(new com.awesome.testing.ollama.dto.ChatMessageDto())
+                .message(new ChatMessageDto())
                 .done(false)
                 .build();
         given(chatToolsService.chatToolStream(any())).willReturn(Flux.just(chunk));
 
         ChatRequestDto request = ChatRequestDto.builder()
-                .tools(java.util.List.of(new com.awesome.testing.ollama.dto.OllamaToolDefinitionDto()))
+                .tools(List.of(new OllamaToolDefinitionDto()))
                 .build();
 
         webTestClient.post()
@@ -71,13 +75,13 @@ class OllamaChatControllerTest {
     void shouldReturnSingleChunkWhenStreamDisabled() {
         ChatResponseDto response = ChatResponseDto.builder()
                 .model("mock")
-                .message(new com.awesome.testing.ollama.dto.ChatMessageDto())
+                .message(new ChatMessageDto())
                 .done(true)
                 .build();
         given(chatService.chatSingle(any())).willReturn(Mono.just(response));
 
         ChatRequestDto request = ChatRequestDto.builder()
-                .messages(java.util.List.of())
+                .messages(List.of())
                 .stream(false)
                 .build();
 
@@ -96,15 +100,15 @@ class OllamaChatControllerTest {
     void shouldReturnToolChunkWhenStreamDisabled() {
         ChatResponseDto response = ChatResponseDto.builder()
                 .model("mock")
-                .message(new com.awesome.testing.ollama.dto.ChatMessageDto())
+                .message(new ChatMessageDto())
                 .done(true)
                 .build();
         given(chatToolsService.chatToolSingle(any())).willReturn(Mono.just(response));
 
         ChatRequestDto request = ChatRequestDto.builder()
-                .messages(java.util.List.of())
+                .messages(List.of())
                 .stream(false)
-                .tools(java.util.List.of(new com.awesome.testing.ollama.dto.OllamaToolDefinitionDto()))
+                .tools(List.of(new OllamaToolDefinitionDto()))
                 .build();
 
         webTestClient.post()
