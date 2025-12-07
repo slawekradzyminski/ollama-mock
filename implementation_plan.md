@@ -51,9 +51,8 @@
   - Support looped request/response (assistant tool_call → tool result → assistant follow-up) to unblock `/api/ollama/chat/tools`.
 - Add unit tests for registry routing, error cases, and streaming sequences.
 
-### Phase 4 — Auxiliary Endpoints & Observability
+### Phase 4 — Auxiliary Endpoints
 - Implement remaining Ollama endpoints needed by dev tooling: `/api/tags`, `/api/ps`, `/api/delete`, `/api/pull` (can return static/mock data), plus `/api/embed` returning deterministic vectors for frontend smoke tests.
-- Add Actuator metrics + Micrometer timers for streaming latency so Prometheus/Grafana dashboards inside `awesome-localstack` stay meaningful even without the real Ollama container.
 - Document configuration profiles (real LLM vs. canned), sample `.env`, and curl examples mirroring `ollama-api.md`.
 
 ### Phase 5 — Integration & Deployment

@@ -1,0 +1,69 @@
+package com.awesome.testing.ollama.controller;
+
+import com.awesome.testing.ollama.dto.ChatRequestDto;
+import com.awesome.testing.ollama.dto.ChatResponseDto;
+import com.awesome.testing.ollama.service.ChatService;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.reactive.WebFluxTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.reactive.server.WebTestClient;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+
+@WebFluxTest(controllers = OllamaChatController.class)
+class OllamaChatControllerTest {
+
+    @Autowired
+    private WebTestClient webTestClient;
+
+    @MockBean
+    private ChatService chatService;
+
+    @Test
+    void shouldStreamChatResponses() {
+        ChatResponseDto chunk = ChatResponseDto.builder()
+                .model("mock")
+                .message(new com.awesome.testing.ollama.dto.ChatMessageDto())
+                .done(false)
+                .build();
+        given(chatService.chatStream(any())).willReturn(Flux.just(chunk));
+
+        webTestClient.post()
+                .uri("/api/chat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(ChatRequestDto.builder().messages(java.util.List.of()).build())
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentType(MediaType.APPLICATION_NDJSON);
+    }
+
+    @Test
+    void shouldReturnSingleChunkWhenStreamDisabled() {
+        ChatResponseDto response = ChatResponseDto.builder()
+                .model("mock")
+                .message(new com.awesome.testing.ollama.dto.ChatMessageDto())
+                .done(true)
+                .build();
+        given(chatService.chatSingle(any())).willReturn(Mono.just(response));
+
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(java.util.List.of())
+                .stream(false)
+                .build();
+
+        webTestClient.post()
+                .uri("/api/chat")
+                .contentType(MediaType.APPLICATION_JSON)
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().contentType(MediaType.APPLICATION_JSON)
+                .expectBody()
+                .jsonPath("$.done").isEqualTo(true);
+    }
+}
