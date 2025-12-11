@@ -161,6 +161,39 @@
           "response": "Here is the narrated finale: once the tool responses arrive, the mock pauses for a beat, then streams a multi-paragraph explanation about how the catalog data and token delays interact so observers can literally watch the assistant spell out the conclusion one token at a time."
         }
       ]
+    },
+    {
+      "name": "two-step-with-explanations",
+      "prompt": "Walk me through a two-step catalog lookup where you narrate between tool calls",
+      "stages": [
+        {
+          "trigger": "user",
+          "toolCall": {
+            "name": "list_products",
+            "arguments": {
+              "category": "electronics",
+              "inStockOnly": true,
+              "limit": 5
+            }
+          }
+        },
+        {
+          "trigger": "tool",
+          "toolName": "list_products",
+          "response": "Got the catalog slice first. Before going deep on pricing I will fetch the detailed snapshot for the first device so the explanation stays grounded.",
+          "toolCall": {
+            "name": "get_product_snapshot",
+            "arguments": {
+              "productId": 1
+            }
+          }
+        },
+        {
+          "trigger": "tool",
+          "toolName": "get_product_snapshot",
+          "response": "Snapshot confirms iPhone 13 Pro is $999 with same-day fulfillment. With all tool data collected, the assistant can now close the loop and share the summary with the user."
+        }
+      ]
     }
   ]
 }

@@ -68,14 +68,24 @@ public class ChatToolsService {
                     "This step for prompt \"%s\" is not configured yet. Please restart the conversation."
                             .formatted(scenario.getPrompt()));
         }
-        if (stage.get().getToolCall() != null) {
-            log.info("[chat-tools][call] prompt='{}' issuing {}", scenario.getPrompt(), stage.get().getToolCall().getName());
-            return Flux.just(toolCallChunk(model, stage.get()));
+        ChatScenarioStageDefinition resolvedStage = stage.get();
+
+        Flux<ChatResponseDto> responseStream = Flux.empty();
+        if (StringUtils.hasText(resolvedStage.getResponse())) {
+            responseStream = streamContentTokens(model, resolvedStage.getResponse());
         }
-        if (StringUtils.hasText(stage.get().getResponse())) {
-            return streamContentTokens(model, stage.get().getResponse());
+
+        Flux<ChatResponseDto> toolCallStream = Flux.empty();
+        if (resolvedStage.getToolCall() != null) {
+            log.info("[chat-tools][call] prompt='{}' issuing {}", scenario.getPrompt(), resolvedStage.getToolCall().getName());
+            toolCallStream = Flux.just(toolCallChunk(model, resolvedStage));
         }
-        return Flux.empty();
+
+        if (resolvedStage.getToolCall() == null && !StringUtils.hasText(resolvedStage.getResponse())) {
+            return Flux.empty();
+        }
+
+        return responseStream.concatWith(toolCallStream);
     }
 
     private Optional<ChatScenarioStageDefinition> determineStage(ChatScenarioDefinition scenario,
@@ -198,6 +208,9 @@ public class ChatToolsService {
 
     private ChatResponseDto resolveSingleStageChunk(String model, ChatScenarioStageDefinition stage) {
         if (stage.getToolCall() != null) {
+            if (StringUtils.hasText(stage.getResponse())) {
+                log.debug("[chat-tools][single] stage contains response and tool call; returning tool call chunk");
+            }
             return toolCallChunk(model, stage);
         }
         if (StringUtils.hasText(stage.getResponse())) {
