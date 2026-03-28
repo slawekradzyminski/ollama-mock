@@ -16,11 +16,14 @@ import reactor.test.StepVerifier;
 
 class ChatServiceTest {
 
+    private static final String DEFAULT_MODEL = "qwen3.5:2b";
+
     private ChatService chatService;
 
     @BeforeEach
     void setUp() {
         OllamaMockProperties properties = new OllamaMockProperties();
+        properties.setDefaultModel(DEFAULT_MODEL);
         properties.setTokenDelay(Duration.ZERO);
         chatService = new ChatService(
                 properties,
@@ -39,6 +42,7 @@ class ChatServiceTest {
 
         StepVerifier.create(chatService.chatStream(request).collectList())
                 .assertNext(chunks -> {
+                    assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.getModel()).isEqualTo(DEFAULT_MODEL));
                     String thinking = chunks.stream()
                             .filter(chunk -> chunk.getMessage() != null)
                             .map(chunk -> chunk.getMessage().getThinking())
@@ -49,8 +53,8 @@ class ChatServiceTest {
                             .map(chunk -> chunk.getMessage().getContent())
                             .filter(msg -> msg != null)
                             .collect(Collectors.joining());
-                    assertThat(thinking).contains("local mock server");
-                    assertThat(content).contains("port 11434");
+                    assertThat(thinking).contains("qwen3.5:2b default");
+                    assertThat(content).contains("defaults to qwen3.5:2b");
                     assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
                 })
                 .verifyComplete();
@@ -67,6 +71,7 @@ class ChatServiceTest {
 
         StepVerifier.create(chatService.chatStream(request).collectList())
                 .assertNext(chunks -> {
+                    assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.getModel()).isEqualTo(DEFAULT_MODEL));
                     String content = chunks.stream()
                             .filter(chunk -> chunk.getMessage() != null)
                             .map(chunk -> chunk.getMessage().getContent())
@@ -90,6 +95,7 @@ class ChatServiceTest {
 
         StepVerifier.create(chatService.chatStream(request).collectList())
                 .assertNext(chunks -> {
+                    assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.getModel()).isEqualTo(DEFAULT_MODEL));
                     assertThat(chunks.stream()
                             .filter(chunk -> chunk.getMessage() != null)
                             .map(chunk -> chunk.getMessage().getThinking())
@@ -99,7 +105,7 @@ class ChatServiceTest {
                             .map(chunk -> chunk.getMessage().getContent())
                             .filter(msg -> msg != null)
                             .collect(Collectors.joining());
-                    assertThat(content).contains("port 11434");
+                    assertThat(content).contains("defaults to qwen3.5:2b");
                     assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
                 })
                 .verifyComplete();

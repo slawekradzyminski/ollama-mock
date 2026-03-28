@@ -25,7 +25,7 @@ class OllamaMetadataControllerTest {
                 .expectStatus().isOk()
                 .expectBody()
                 .jsonPath("$.version").isEqualTo("0.0.1-test")
-                .jsonPath("$.mockModel").isEqualTo("test-model")
+                .jsonPath("$.mockModel").isEqualTo("qwen3.5:2b")
                 .jsonPath("$.timestamp").exists();
     }
 
@@ -36,7 +36,7 @@ class OllamaMetadataControllerTest {
         OllamaMockProperties mockProperties() {
             OllamaMockProperties props = new OllamaMockProperties();
             props.setVersion("0.0.1-test");
-            props.setDefaultModel("test-model");
+            props.setDefaultModel("qwen3.5:2b");
             return props;
         }
     }

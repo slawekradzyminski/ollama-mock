@@ -4,10 +4,10 @@
       "prompt": "Summarize the release plan",
       "chunks": [
         {
-          "thinking": "Reviewing the release checklist before drafting the summary..."
+          "thinking": "Reviewing the qwen3.5:2b release checklist before drafting the summary..."
         },
         {
-          "response": "Release plan: mock Ollama service ready for local profile, frontend hooks can stay untouched, and integration smoke test is scheduled after Phase 4. Ping me if you need more depth."
+          "response": "Release plan: qwen3.5:2b is the default mock model, frontend hooks can stay untouched, and integration smoke test is scheduled after Phase 4. Ping me if you need more depth."
         }
       ]
     },

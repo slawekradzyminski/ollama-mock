@@ -4,10 +4,10 @@
       "prompt": "Give me a quick status update on the Ollama mock",
       "chunks": [
         {
-          "thinking": "Reviewing the latest notes about the local mock server..."
+          "thinking": "Reviewing the latest notes about the local mock server and its qwen3.5:2b default..."
         },
         {
-          "response": "The Ollama mock is up on port 11434, streaming deterministic responses so backend/frontend teams can skip the heavy container during the local profile."
+          "response": "The Ollama mock is up on port 11434, defaults to qwen3.5:2b, and streams deterministic responses so backend/frontend teams can skip the heavy container during the local profile."
         }
       ]
     },
@@ -15,10 +15,10 @@
       "prompt": "How do I switch the backend to this mock?",
       "chunks": [
         {
-          "thinking": "Recalling the developer instructions..."
+          "thinking": "Recalling the developer instructions for the qwen3.5:2b mock path..."
         },
         {
-          "response": "Point test-secure-backend's local profile at http://localhost:11434 and keep the existing DTOs; the mock mirrors Ollama's JSON envelope so no other code changes are needed."
+          "response": "Point test-secure-backend's local profile at http://localhost:11434 and keep the existing DTOs; the mock mirrors Ollama's JSON envelope and resolves omitted models to qwen3.5:2b so no other code changes are needed."
         }
       ]
     },
@@ -26,10 +26,10 @@
       "prompt": "What limitations should I expect from the mock?",
       "chunks": [
         {
-          "thinking": "Summarizing the intentionally simplified behavior..."
+          "thinking": "Summarizing the intentionally simplified behavior and the new default model..."
         },
         {
-          "response": "It only understands a curated set of prompts, does not hit real models, and emits canned tool results. Use it for rapid UI/backend testing rather than benchmarking model quality."
+          "response": "It only understands a curated set of prompts, does not hit real models, and emits canned tool results. Use it for rapid UI/backend testing rather than benchmarking model quality or qwen3.5:2b behavior."
         }
       ]
     },
@@ -37,10 +37,10 @@
       "prompt": "Narrate the full streaming timeline for this mock",
       "chunks": [
         {
-          "thinking": "Collecting the internal notes about NDJSON streaming, token delays, and logging so the explanation can unfold in real time..."
+          "thinking": "Collecting the internal notes about qwen3.5:2b, NDJSON streaming, token delays, and logging so the explanation can unfold in real time..."
         },
         {
-          "response": "First you fire a request at /api/chat, the mock inspects the prompt, and as soon as it finds this scenario it logs that the narration is about to stream token by token."
+          "response": "First you fire a request at /api/chat, the mock resolves qwen3.5:2b by default, inspects the prompt, and as soon as it finds this scenario it logs that the narration is about to stream token by token."
         },
         {
           "response": "Then the thinking paragraph arrives slowly, letting you see each connective phrase trickle to stdout, proving that the simulator behaves like a methodical LLM rather than dumping a single blob."

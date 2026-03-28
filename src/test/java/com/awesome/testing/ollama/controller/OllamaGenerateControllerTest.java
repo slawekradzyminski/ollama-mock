@@ -18,6 +18,8 @@ import reactor.core.publisher.Mono;
 @WebFluxTest(controllers = OllamaGenerateController.class)
 class OllamaGenerateControllerTest {
 
+    private static final String DEFAULT_MODEL = "qwen3.5:2b";
+
     @Autowired
     private WebTestClient webTestClient;
 
@@ -27,7 +29,7 @@ class OllamaGenerateControllerTest {
     @Test
     void shouldStreamNdjsonWhenStreamFlagTrue() {
         GenerateResponseDto chunk = GenerateResponseDto.builder()
-                .model("mock")
+                .model(DEFAULT_MODEL)
                 .response("hi")
                 .done(false)
                 .build();
@@ -36,7 +38,7 @@ class OllamaGenerateControllerTest {
         webTestClient.post()
                 .uri("/api/generate")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(StreamedRequestDto.builder().model("mock").prompt("hello").build())
+                .bodyValue(StreamedRequestDto.builder().model(DEFAULT_MODEL).prompt("hello").build())
                 .exchange()
                 .expectStatus().isOk()
                 .expectHeader().contentType(MediaType.APPLICATION_NDJSON)
@@ -47,14 +49,14 @@ class OllamaGenerateControllerTest {
     @Test
     void shouldReturnJsonWhenStreamFlagFalse() {
         GenerateResponseDto response = GenerateResponseDto.builder()
-                .model("mock")
+                .model(DEFAULT_MODEL)
                 .response("full")
                 .done(true)
                 .build();
         given(generateService.generateSingle(any())).willReturn(Mono.just(response));
 
         StreamedRequestDto body = StreamedRequestDto.builder()
-                .model("mock")
+                .model(DEFAULT_MODEL)
                 .prompt("Hello")
                 .stream(false)
                 .build();

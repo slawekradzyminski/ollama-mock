@@ -23,6 +23,8 @@ import static org.mockito.BDDMockito.given;
 @WebFluxTest(controllers = OllamaChatController.class)
 class OllamaChatControllerTest {
 
+    private static final String DEFAULT_MODEL = "qwen3.5:2b";
+
     @Autowired
     private WebTestClient webTestClient;
 
@@ -34,7 +36,7 @@ class OllamaChatControllerTest {
     @Test
     void shouldStreamChatResponses() {
         ChatResponseDto chunk = ChatResponseDto.builder()
-                .model("mock")
+                .model(DEFAULT_MODEL)
                 .message(new ChatMessageDto())
                 .done(false)
                 .build();
@@ -43,7 +45,7 @@ class OllamaChatControllerTest {
         webTestClient.post()
                 .uri("/api/chat")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(ChatRequestDto.builder().messages(List.of()).build())
+                .bodyValue(ChatRequestDto.builder().model(DEFAULT_MODEL).messages(List.of()).build())
                 .exchange()
                 .expectStatus().isOk()
                 .expectHeader().contentType(MediaType.APPLICATION_NDJSON);
@@ -52,13 +54,14 @@ class OllamaChatControllerTest {
     @Test
     void shouldStreamToolResponsesWhenToolsPresent() {
         ChatResponseDto chunk = ChatResponseDto.builder()
-                .model("mock")
+                .model(DEFAULT_MODEL)
                 .message(new ChatMessageDto())
                 .done(false)
                 .build();
         given(chatToolsService.chatToolStream(any())).willReturn(Flux.just(chunk));
 
         ChatRequestDto request = ChatRequestDto.builder()
+                .model(DEFAULT_MODEL)
                 .tools(List.of(new OllamaToolDefinitionDto()))
                 .build();
 
@@ -74,13 +77,14 @@ class OllamaChatControllerTest {
     @Test
     void shouldReturnSingleChunkWhenStreamDisabled() {
         ChatResponseDto response = ChatResponseDto.builder()
-                .model("mock")
+                .model(DEFAULT_MODEL)
                 .message(new ChatMessageDto())
                 .done(true)
                 .build();
         given(chatService.chatSingle(any())).willReturn(Mono.just(response));
 
         ChatRequestDto request = ChatRequestDto.builder()
+                .model(DEFAULT_MODEL)
                 .messages(List.of())
                 .stream(false)
                 .build();
@@ -99,13 +103,14 @@ class OllamaChatControllerTest {
     @Test
     void shouldReturnToolChunkWhenStreamDisabled() {
         ChatResponseDto response = ChatResponseDto.builder()
-                .model("mock")
+                .model(DEFAULT_MODEL)
                 .message(new ChatMessageDto())
                 .done(true)
                 .build();
         given(chatToolsService.chatToolSingle(any())).willReturn(Mono.just(response));
 
         ChatRequestDto request = ChatRequestDto.builder()
+                .model(DEFAULT_MODEL)
                 .messages(List.of())
                 .stream(false)
                 .tools(List.of(new OllamaToolDefinitionDto()))

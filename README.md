@@ -1,6 +1,6 @@
 # Ollama Mock
 
-Lightweight Spring Boot 3.5.8 service that emulates the Ollama HTTP API for local development. It exposes `/api/generate`, `/api/chat`, `/api/chat/tools`, `/api/chat/tools/definitions`, `/api/version`, etc., and uses deterministic JSON scenarios so frontend and backend teams can run the stack without pulling a real Ollama/Qwen container.
+Lightweight Spring Boot 3.5.8 service that emulates the Ollama HTTP API for local development. It exposes `/api/generate`, `/api/chat`, `/api/chat/tools`, `/api/chat/tools/definitions`, `/api/version`, etc., and uses deterministic JSON scenarios so frontend and backend teams can run the stack without pulling a real Ollama/Qwen container. The default model is `qwen3.5:2b` unless `OLLAMA_MOCK_MODEL` overrides it.
 
 ## Endpoints & Behavior
 
@@ -18,6 +18,7 @@ Each scenario file contains deterministic steps. Add or modify prompts by editin
 - `/api/generate` and `/api/chat` include “thinking” chunks **only** when the request payload sets `"think": true`.
 - `/api/chat/tools` never emits `thinking` to match how tool handlers expect payloads.
 - All responses stream token-by-token with a configurable delay (`ollama.mock.token-delay`, default `150ms`). Tool calls pause for `ollama.mock.tool-call-delay` (default `1s`) before emitting the tool payload to mimic function execution.
+- Requests that omit `model` resolve to `qwen3.5:2b`, keeping the mock aligned with the migration target.
 
 ## Running Locally
 
@@ -31,30 +32,30 @@ Example requests:
 ```bash
 # /api/generate with thinking
 curl -sN -H 'Content-Type: application/json' \
-  -d '{"prompt":"Summarize the release plan","think":true}' \
+  -d '{"model":"qwen3.5:2b","prompt":"Summarize the release plan","think":true}' \
   http://localhost:11434/api/generate
 
 # /api/chat without thinking
 curl -sN -H 'Content-Type: application/json' \
-  -d '{"messages":[{"role":"user","content":"Give me a quick status update on the Ollama mock"}],"think":false}' \
+  -d '{"model":"qwen3.5:2b","messages":[{"role":"user","content":"Give me a quick status update on the Ollama mock"}],"think":false}' \
   http://localhost:11434/api/chat
 
 # /api/chat/tools
 curl -sN -H 'Content-Type: application/json' \
-  -d '{"messages":[{"role":"user","content":"What iphones do we have available? Tell me the details about them"}],"tools":[{"function":{"name":"list_products"}}]}' \
+  -d '{"model":"qwen3.5:2b","messages":[{"role":"user","content":"What iphones do we have available? Tell me the details about them"}],"tools":[{"function":{"name":"list_products"}}]}' \
   http://localhost:11434/api/chat
 
 # Streaming showcase prompts (observe logs for token-by-token output)
 curl -sN -H 'Content-Type: application/json' \
-  -d '{"prompt":"Walk me through the streaming demo for /api/generate","think":true}' \
+  -d '{"model":"qwen3.5:2b","prompt":"Walk me through the streaming demo for /api/generate","think":true}' \
   http://localhost:11434/api/generate
 
 curl -sN -H 'Content-Type: application/json' \
-  -d '{"messages":[{"role":"user","content":"Narrate the full streaming timeline for this mock"}],"think":true}' \
+  -d '{"model":"qwen3.5:2b","messages":[{"role":"user","content":"Narrate the full streaming timeline for this mock"}],"think":true}' \
   http://localhost:11434/api/chat
 
 curl -sN -H 'Content-Type: application/json' \
-  -d '{"messages":[{"role":"user","content":"Show me the streaming timeline when a tool call is involved"}],"tools":[{"function":{"name":"list_products"}}]}' \
+  -d '{"model":"qwen3.5:2b","messages":[{"role":"user","content":"Show me the streaming timeline when a tool call is involved"}],"tools":[{"function":{"name":"list_products"}}]}' \
   http://localhost:11434/api/chat
 ```
 

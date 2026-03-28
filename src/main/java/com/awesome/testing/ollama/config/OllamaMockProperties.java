@@ -16,7 +16,7 @@ public class OllamaMockProperties {
     /**
      * Default model name when a request does not specify one.
      */
-    private String defaultModel = "gpt-4o-mini";
+    private String defaultModel = "qwen3.5:2b";
 
     /**
      * Delay between streamed tokens to mimic incremental decoding.

@@ -15,12 +15,14 @@ import reactor.test.StepVerifier;
 
 class GenerateServiceTest {
 
+    private static final String DEFAULT_MODEL = "qwen3.5:2b";
+
     private GenerateService generateService;
 
     @BeforeEach
     void setUp() {
         OllamaMockProperties properties = new OllamaMockProperties();
-        properties.setDefaultModel("default-model");
+        properties.setDefaultModel(DEFAULT_MODEL);
         properties.setTokenDelay(Duration.ZERO);
         generateService = new GenerateService(
                 properties,
@@ -30,13 +32,13 @@ class GenerateServiceTest {
     @Test
     void shouldStreamScenarioChunksWhenThinkingEnabled() {
         StreamedRequestDto request = StreamedRequestDto.builder()
-                .model("default-model")
                 .prompt("Summarize the release plan")
                 .think(true)
                 .build();
 
         StepVerifier.create(generateService.generateStream(request).collectList())
                 .assertNext(chunks -> {
+                    assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.getModel()).isEqualTo(DEFAULT_MODEL));
                     String thinking = chunks.stream()
                             .map(GenerateResponseDto::getThinking)
                             .filter(thought -> thought != null)
@@ -45,8 +47,8 @@ class GenerateServiceTest {
                             .map(GenerateResponseDto::getResponse)
                             .filter(resp -> resp != null)
                             .collect(Collectors.joining());
-                    assertThat(thinking).contains("release checklist");
-                    assertThat(content).contains("mock Ollama service");
+                    assertThat(thinking).contains("qwen3.5:2b release checklist");
+                    assertThat(content).contains("qwen3.5:2b is the default mock model");
                     assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
                 })
                 .verifyComplete();
@@ -55,7 +57,6 @@ class GenerateServiceTest {
     @Test
     void shouldReturnFallbackForUnsupportedPrompt() {
         StreamedRequestDto request = StreamedRequestDto.builder()
-                .model("default-model")
                 .prompt("Unknown prompt")
                 .build();
 
@@ -74,12 +75,12 @@ class GenerateServiceTest {
     @Test
     void shouldReturnSingleScenarioResponse() {
         StreamedRequestDto request = StreamedRequestDto.builder()
-                .model("default-model")
                 .prompt("Provide a motivational quote")
                 .build();
 
         StepVerifier.create(generateService.generateSingle(request))
                 .assertNext(chunk -> {
+                    assertThat(chunk.getModel()).isEqualTo(DEFAULT_MODEL);
                     assertThat(chunk.isDone()).isTrue();
                     assertThat(chunk.getResponse()).contains("Keep shipping mock services");
                 })
@@ -89,13 +90,13 @@ class GenerateServiceTest {
     @Test
     void shouldSkipThinkingChunksWhenDisabled() {
         StreamedRequestDto request = StreamedRequestDto.builder()
-                .model("default-model")
                 .prompt("Summarize the release plan")
                 .think(false)
                 .build();
 
         StepVerifier.create(generateService.generateStream(request).collectList())
                 .assertNext(chunks -> {
+                    assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.getModel()).isEqualTo(DEFAULT_MODEL));
                     assertThat(chunks.stream()
                             .map(GenerateResponseDto::getThinking)
                             .allMatch(thought -> thought == null)).isTrue();
@@ -103,7 +104,7 @@ class GenerateServiceTest {
                             .map(GenerateResponseDto::getResponse)
                             .filter(resp -> resp != null)
                             .collect(Collectors.joining());
-                    assertThat(response).contains("mock Ollama service");
+                    assertThat(response).contains("qwen3.5:2b is the default mock model");
                     assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
                 })
                 .verifyComplete();

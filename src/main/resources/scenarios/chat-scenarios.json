@@ -28,7 +28,7 @@
         {
           "trigger": "tool",
           "toolName": "get_product_snapshot",
-          "response": "According to the catalog we currently have: iPhone 13 Pro and Samsung Galaxy S21. Snapshot for iPhone 13 Pro: priced at $999 with 5 unit(s) in stock."
+          "response": "According to the catalog we currently have on the qwen3.5:2b default path: iPhone 13 Pro and Samsung Galaxy S21. Snapshot for iPhone 13 Pro: priced at $999 with 5 unit(s) in stock."
         }
       ]
     },
@@ -158,7 +158,7 @@
         {
           "trigger": "tool",
           "toolName": "get_product_snapshot",
-          "response": "Here is the narrated finale: once the tool responses arrive, the mock pauses for a beat, then streams a multi-paragraph explanation about how the catalog data and token delays interact so observers can literally watch the assistant spell out the conclusion one token at a time."
+          "response": "Here is the narrated finale: once the tool responses arrive, the qwen3.5:2b-backed mock pauses for a beat, then streams a multi-paragraph explanation about how the catalog data and token delays interact so observers can literally watch the assistant spell out the conclusion one token at a time."
         }
       ]
     },

@@ -19,6 +19,8 @@ import reactor.core.publisher.Mono;
 @WebFluxTest(controllers = OllamaChatToolsController.class)
 class OllamaChatToolsControllerTest {
 
+    private static final String DEFAULT_MODEL = "qwen3.5:2b";
+
     @Autowired
     private WebTestClient webTestClient;
 
@@ -28,7 +30,7 @@ class OllamaChatToolsControllerTest {
     @Test
     void shouldStreamToolResponsesWithApiPath() {
         ChatResponseDto chunk = ChatResponseDto.builder()
-                .model("mock")
+                .model(DEFAULT_MODEL)
                 .message(new ChatMessageDto())
                 .done(false)
                 .build();
@@ -37,7 +39,7 @@ class OllamaChatToolsControllerTest {
         webTestClient.post()
                 .uri("/api/chat/tools")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(ChatRequestDto.builder().messages(java.util.List.of()).build())
+                .bodyValue(ChatRequestDto.builder().model(DEFAULT_MODEL).messages(java.util.List.of()).build())
                 .exchange()
                 .expectStatus().isOk()
                 .expectHeader().contentType(MediaType.APPLICATION_NDJSON);
@@ -46,7 +48,7 @@ class OllamaChatToolsControllerTest {
     @Test
     void shouldStreamToolResponsesWithLegacyPath() {
         ChatResponseDto chunk = ChatResponseDto.builder()
-                .model("mock")
+                .model(DEFAULT_MODEL)
                 .message(new ChatMessageDto())
                 .done(false)
                 .build();
@@ -55,7 +57,7 @@ class OllamaChatToolsControllerTest {
         webTestClient.post()
                 .uri("/chat/tools")
                 .contentType(MediaType.APPLICATION_JSON)
-                .bodyValue(ChatRequestDto.builder().messages(java.util.List.of()).build())
+                .bodyValue(ChatRequestDto.builder().model(DEFAULT_MODEL).messages(java.util.List.of()).build())
                 .exchange()
                 .expectStatus().isOk()
                 .expectHeader().contentType(MediaType.APPLICATION_NDJSON);
@@ -64,13 +66,14 @@ class OllamaChatToolsControllerTest {
     @Test
     void shouldReturnSingleToolChunk() {
         ChatResponseDto response = ChatResponseDto.builder()
-                .model("mock")
+                .model(DEFAULT_MODEL)
                 .message(new ChatMessageDto())
                 .done(true)
                 .build();
         given(chatToolsService.chatToolSingle(any())).willReturn(Mono.just(response));
 
         ChatRequestDto request = ChatRequestDto.builder()
+                .model(DEFAULT_MODEL)
                 .messages(java.util.List.of())
                 .stream(false)
                 .build();

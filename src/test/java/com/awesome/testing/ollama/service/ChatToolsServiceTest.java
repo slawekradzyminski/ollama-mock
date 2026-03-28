@@ -15,11 +15,14 @@ import reactor.test.StepVerifier;
 
 class ChatToolsServiceTest {
 
+    private static final String DEFAULT_MODEL = "qwen3.5:2b";
+
     private ChatToolsService chatToolsService;
 
     @BeforeEach
     void setUp() {
         OllamaMockProperties properties = new OllamaMockProperties();
+        properties.setDefaultModel(DEFAULT_MODEL);
         properties.setTokenDelay(Duration.ZERO);
         properties.setToolCallDelay(Duration.ZERO);
         chatToolsService = new ChatToolsService(
@@ -38,6 +41,7 @@ class ChatToolsServiceTest {
 
         StepVerifier.create(chatToolsService.chatToolStream(request).collectList())
                 .assertNext(chunks -> {
+                    assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.getModel()).isEqualTo(DEFAULT_MODEL));
                     assertThat(chunks.get(0).getMessage().getToolCalls().get(0).getFunction().getName())
                             .isEqualTo("list_products");
                     assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
@@ -62,6 +66,7 @@ class ChatToolsServiceTest {
 
         StepVerifier.create(chatToolsService.chatToolStream(request).collectList())
                 .assertNext(chunks -> {
+                    assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.getModel()).isEqualTo(DEFAULT_MODEL));
                     assertThat(chunks.get(0).getMessage().getToolCalls().get(0).getFunction().getName())
                             .isEqualTo("get_product_snapshot");
                     assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
@@ -90,6 +95,7 @@ class ChatToolsServiceTest {
 
         StepVerifier.create(chatToolsService.chatToolStream(request).collectList())
                 .assertNext(chunks -> {
+                    assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.getModel()).isEqualTo(DEFAULT_MODEL));
                     String content = chunks.stream()
                             .filter(chunk -> chunk.getMessage() != null && chunk.getMessage().getContent() != null)
                             .map(chunk -> chunk.getMessage().getContent())
@@ -111,11 +117,37 @@ class ChatToolsServiceTest {
 
         StepVerifier.create(chatToolsService.chatToolStream(request).collectList())
                 .assertNext(chunks -> {
+                    assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.getModel()).isEqualTo(DEFAULT_MODEL));
                     String content = chunks.stream()
                             .filter(chunk -> chunk.getMessage() != null && chunk.getMessage().getContent() != null)
                             .map(chunk -> chunk.getMessage().getContent())
                             .reduce("", String::concat);
                     assertThat(content).contains("Sorry, only these chat tool prompts are supported");
+                    assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldAcceptThinkingRequestsWithoutChangingToolFlow() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(ChatMessageDto.builder()
+                        .role("user")
+                        .content("What iphones do we have available? Tell me the details about them")
+                        .build()))
+                .think(true)
+                .build();
+
+        StepVerifier.create(chatToolsService.chatToolStream(request).collectList())
+                .assertNext(chunks -> {
+                    assertThat(chunks).allSatisfy(chunk -> assertThat(chunk.getModel()).isEqualTo(DEFAULT_MODEL));
+                    assertThat(chunks.stream()
+                            .filter(chunk -> chunk.getMessage() != null)
+                            .flatMap(chunk -> java.util.stream.Stream.ofNullable(chunk.getMessage().getThinking()))
+                            .findAny())
+                            .isEmpty();
+                    assertThat(chunks.get(0).getMessage().getToolCalls().get(0).getFunction().getName())
+                            .isEqualTo("list_products");
                     assertThat(chunks.get(chunks.size() - 1).isDone()).isTrue();
                 })
                 .verifyComplete();
