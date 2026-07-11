@@ -1,7 +1,7 @@
 package com.awesome.testing.ollama.scenario.chat;
 
 import com.awesome.testing.ollama.dto.ChatMessageDto;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;

@@ -1,6 +1,6 @@
 package com.awesome.testing.ollama.scenario.generate;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.LinkedHashMap;

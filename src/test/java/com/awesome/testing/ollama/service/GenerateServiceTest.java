@@ -6,7 +6,7 @@ import com.awesome.testing.ollama.config.OllamaMockProperties;
 import com.awesome.testing.ollama.dto.GenerateResponseDto;
 import com.awesome.testing.ollama.dto.StreamedRequestDto;
 import com.awesome.testing.ollama.scenario.generate.GenerateScenarioRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
