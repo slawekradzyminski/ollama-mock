@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.0
+      - uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Verify application
+        run: ./mvnw --batch-mode --no-transfer-progress verify
+      - name: Build runtime image
+        run: docker build --tag ollama-mock:ci .
+      - name: Verify container contract
+        run: |
+          docker run --detach --name ollama-mock-ci \
+            --publish 127.0.0.1:11435:11434 \
+            --env OLLAMA_MOCK_TOKEN_DELAY=0ms \
+            --env OLLAMA_MOCK_TOOL_DELAY=0ms \
+            ollama-mock:ci
+          trap 'docker rm --force ollama-mock-ci' EXIT
+          if ! ./scripts/container-smoke.sh http://127.0.0.1:11435; then
+            docker logs ollama-mock-ci
+            exit 1
+          fi
