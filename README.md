@@ -84,7 +84,7 @@ docker rm --force ollama-mock-local
 
 ## Container releases
 
-The project version uses Maven's `revision` property. Development on the next release stays at a version such as `1.0.6-SNAPSHOT`; a `v1.0.6` tag or a manual candidate such as `1.0.6-rc.1` must match that release line.
+The project version uses Maven's `revision` property. Stable release commits use an exact version such as `1.0.6`; development and manual candidates may use the matching snapshot release line. A `v1.0.6` tag or a candidate such as `1.0.6-rc.1` must match that line.
 
 Tags and manual publishing runs inject the validated release version, verify the Maven build and container contract, and then produce `linux/amd64` and `linux/arm64` images. The same build is published with SBOM and provenance to:
 
