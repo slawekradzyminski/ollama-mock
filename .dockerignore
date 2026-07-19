@@ -1,0 +1,9 @@
+.git
+.github
+.idea
+target
+*.iml
+README.md
+HELP.md
+ollama-api.md
+build-multiarch.sh

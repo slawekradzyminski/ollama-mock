@@ -1,6 +1,6 @@
 # Ollama Mock
 
-Lightweight Spring Boot 3.5.8 service that emulates the Ollama HTTP API for local development. It exposes `/api/generate`, `/api/chat`, `/api/chat/tools`, `/api/chat/tools/definitions`, `/api/version`, etc., and uses deterministic JSON scenarios so frontend and backend teams can run the stack without pulling a real Ollama/Qwen container. The default model is `qwen3.5:2b` unless `OLLAMA_MOCK_MODEL` overrides it.
+Lightweight Spring Boot service that emulates the Ollama HTTP API for local development. It exposes `/api/generate`, `/api/chat`, `/api/chat/tools`, `/api/chat/tools/definitions`, `/api/version`, etc., and uses deterministic JSON scenarios so frontend and backend teams can run the stack without pulling a real Ollama/Qwen container. The default model is `qwen3.5:2b` unless `OLLAMA_MOCK_MODEL` overrides it.
 
 ## Endpoints & Behavior
 
@@ -69,7 +69,31 @@ Stop the app with `Ctrl+C` or `kill <PID>`.
 
 Unit tests cover scenario parsing, controller routing, and the thinking flag behavior for both chat and generate flows.
 
-### Inspecting the Token Stream
+The CI workflow also builds the final image and runs the container contract covering metadata, non-streaming and streaming generation, chat, tool definitions, and tool-call routing:
+
+```bash
+docker build --tag ollama-mock:local .
+docker run --detach --name ollama-mock-local \
+  --publish 127.0.0.1:11434:11434 \
+  --env OLLAMA_MOCK_TOKEN_DELAY=0ms \
+  --env OLLAMA_MOCK_TOOL_DELAY=0ms \
+  ollama-mock:local
+./scripts/container-smoke.sh
+docker rm --force ollama-mock-local
+```
+
+## Container releases
+
+The project version uses Maven's `revision` property. Stable release commits use an exact version such as `1.0.6`; development and manual candidates may use the matching snapshot release line. A `v1.0.6` tag or a candidate such as `1.0.6-rc.1` must match that line.
+
+Tags and manual publishing runs inject the validated release version, verify the Maven build and container contract, and then produce `linux/amd64` and `linux/arm64` images. The same build is published with SBOM and provenance to:
+
+- `ghcr.io/slawekradzyminski/ollama-mock`
+- `slawekradzyminski/ollama-mock` on Docker Hub
+
+GitHub publishing uses `GITHUB_TOKEN`. Docker Hub publishing requires repository secrets named `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN`. Stable Git tags also update `latest`; manually dispatched candidates never do.
+
+## Inspecting the Token Stream
 
 `src/main/resources/logback-spring.xml` sets dedicated loggers for the chat/generate/services. When you run the app (`./mvnw spring-boot:run`) and trigger any of the streaming showcase prompts above, the console prints lines such as `[chat-stream][content-token] token text` so you can follow every emitted token without extra tooling. Adjust `ollama.mock.token-delay` / `ollama.mock.tool-call-delay` to speed up or slow down the demonstration.
 
@@ -107,4 +131,4 @@ Unit tests cover scenario parsing, controller routing, and the thinking flag beh
 
 - Core endpoints (`/generate`, `/chat`, `/chat/tools`, `/chat/tools/definitions`, `/version`) stream deterministic tokens with realistic latency controls via `ollama.mock.token-delay` and `ollama.mock.tool-call-delay`.
 - For additional Ollama endpoints (`/api/tags`, `/api/ps`, `/api/delete`, `/api/pull`, `/api/embed`, etc.) extend the controllers/services following the existing pattern when needed.
-- Build/push the Docker image with `./build-multiarch.sh 1.0.0` (or another tag) and update `awesome-localstack/lightweight-docker-compose.yml` to point at the published image.
+- Publish a versioned image through GitHub Actions and update Awesome LocalStack to pin the resulting immutable digest.

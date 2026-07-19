@@ -1,0 +1,155 @@
+name: Publish container image
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Immutable image tag, for example 1.0.6-rc.1
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write
+
+concurrency:
+  group: publish-ollama-mock-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  GHCR_IMAGE: ghcr.io/${{ github.repository }}
+  DOCKERHUB_IMAGE: slawekradzyminski/ollama-mock
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v7.0.0
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@v5.6.0
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Validate release source and version
+        id: version
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          MANUAL_VERSION: ${{ inputs.version }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          git fetch --no-tags origin master
+          if ! git merge-base --is-ancestor HEAD origin/master; then
+            echo "Release commit must belong to origin/master" >&2
+            exit 1
+          fi
+
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            VERSION="$MANUAL_VERSION"
+          else
+            VERSION="${REF_NAME#v}"
+          fi
+          if ! printf '%s' "$VERSION" | grep --extended-regexp --quiet '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$'; then
+            echo "Version must look like 1.0.6 or 1.0.6-rc.1" >&2
+            exit 1
+          fi
+
+          PROJECT_VERSION=$(./mvnw --batch-mode --no-transfer-progress help:evaluate \
+            -Dexpression=project.version -q -DforceStdout)
+          RELEASE_LINE="${PROJECT_VERSION%-SNAPSHOT}"
+          case "$VERSION" in
+            "$RELEASE_LINE"|"$RELEASE_LINE"-*) ;;
+            *)
+              echo "Release $VERSION does not match project version $PROJECT_VERSION" >&2
+              exit 1
+              ;;
+          esac
+          echo "value=$VERSION" >> "$GITHUB_OUTPUT"
+      - name: Verify application
+        run: ./mvnw --batch-mode --no-transfer-progress verify
+      - name: Validate publishing credentials
+        env:
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
+        run: |
+          if [ -z "$DOCKERHUB_USERNAME" ] || [ -z "$DOCKERHUB_TOKEN" ]; then
+            echo "DOCKERHUB_USERNAME and DOCKERHUB_TOKEN repository secrets are required" >&2
+            exit 1
+          fi
+      - uses: docker/setup-qemu-action@v4.2.0
+      - uses: docker/setup-buildx-action@v4.2.0
+      - name: Build smoke-test image
+        uses: docker/build-push-action@v7.3.0
+        with:
+          context: .
+          load: true
+          tags: ollama-mock:release-candidate
+          build-args: REVISION=${{ steps.version.outputs.value }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Verify container contract
+        run: |
+          docker run --detach --name ollama-mock-release-candidate \
+            --publish 127.0.0.1:11435:11434 \
+            --env OLLAMA_MOCK_TOKEN_DELAY=0ms \
+            --env OLLAMA_MOCK_TOOL_DELAY=0ms \
+            ollama-mock:release-candidate
+          trap 'docker rm --force ollama-mock-release-candidate' EXIT
+          if ! OLLAMA_MOCK_EXPECTED_VERSION=${{ steps.version.outputs.value }} \
+            ./scripts/container-smoke.sh http://127.0.0.1:11435; then
+            docker logs ollama-mock-release-candidate
+            exit 1
+          fi
+      - uses: docker/login-action@v4.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/login-action@v4.4.0
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6.2.0
+        with:
+          images: |
+            ${{ env.GHCR_IMAGE }}
+            ${{ env.DOCKERHUB_IMAGE }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.value }}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable=${{ startsWith(github.ref, 'refs/tags/v') && !contains(github.ref_name, '-') }}
+          labels: |
+            org.opencontainers.image.version=${{ steps.version.outputs.value }}
+      - name: Publish multi-platform image
+        id: publish
+        uses: docker/build-push-action@v7.3.0
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          build-args: REVISION=${{ steps.version.outputs.value }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: mode=max
+          sbom: true
+      - name: Summarize published manifest
+        env:
+          DIGEST: ${{ steps.publish.outputs.digest }}
+          VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          {
+            printf "### Ollama Mock container published\n\n"
+            printf -- "- Version: \`%s\`\n" "$VERSION"
+            printf -- "- Manifest digest: \`%s\`\n" "$DIGEST"
+            printf -- "- Registries: \`%s\`, \`%s\`\n" "$GHCR_IMAGE" "$DOCKERHUB_IMAGE"
+          } >> "$GITHUB_STEP_SUMMARY"
