@@ -27,7 +27,7 @@
 		<url/>
 	</scm>
 	<properties>
-		<revision>1.0.7</revision>
+		<revision>1.0.8</revision>
 		<java.version>25</java.version>
 	</properties>
 	<dependencies>
