@@ -110,4 +110,64 @@ class ChatServiceTest {
                 })
                 .verifyComplete();
     }
+
+    @Test
+    void shouldAggregateAllDialogueSectionsForSingleResponse() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .model("custom-chat-model")
+                .messages(List.of(ChatMessageDto.builder()
+                        .role("user")
+                        .content("Narrate the full streaming timeline for this mock")
+                        .build()))
+                .think(true)
+                .build();
+
+        StepVerifier.create(chatService.chatSingle(request))
+                .assertNext(response -> {
+                    assertThat(response.getModel()).isEqualTo("custom-chat-model");
+                    assertThat(response.isDone()).isFalse();
+                    assertThat(response.getMessage().getThinking()).contains("Collecting the internal notes");
+                    assertThat(response.getMessage().getContent())
+                            .contains("First you fire a request", "Then the thinking paragraph", "Finally the assistant text")
+                            .contains("\n\n");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldDelayNonTerminalChatChunksWithoutWaitingInRealTime() {
+        OllamaMockProperties properties = new OllamaMockProperties();
+        properties.setDefaultModel(DEFAULT_MODEL);
+        properties.setTokenDelay(Duration.ofSeconds(1));
+        ChatService delayedService = new ChatService(
+                properties,
+                new ChatDialogueScenarioRepository(new ObjectMapper()));
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(ChatMessageDto.builder()
+                        .role("user")
+                        .content("Give me a quick status update on the Ollama mock")
+                        .build()))
+                .build();
+
+        StepVerifier.withVirtualTime(() -> delayedService.chatStream(request).take(1))
+                .expectSubscription()
+                .expectNoEvent(Duration.ofMillis(999))
+                .thenAwait(Duration.ofMillis(1))
+                .assertNext(response -> assertThat(response.isDone()).isFalse())
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldReturnCompleteSupportedPromptListForUnknownSingleRequest() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(ChatMessageDto.builder().role("user").content("Unknown").build()))
+                .build();
+
+        StepVerifier.create(chatService.chatSingle(request))
+                .assertNext(response -> assertThat(response.getMessage().getContent())
+                        .contains(
+                                "- Give me a quick status update on the Ollama mock",
+                                "- Narrate the full streaming timeline for this mock"))
+                .verifyComplete();
+    }
 }

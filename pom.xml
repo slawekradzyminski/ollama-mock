@@ -27,8 +27,10 @@
 		<url/>
 	</scm>
 	<properties>
-		<revision>1.0.8</revision>
+		<revision>1.0.9</revision>
 		<java.version>25</java.version>
+		<pitest.version>1.25.8</pitest.version>
+		<pitest.junit5.version>1.2.3</pitest.junit5.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -108,5 +110,43 @@
 			</plugin>
 		</plugins>
 	</build>
+
+	<profiles>
+		<profile>
+			<id>mutation-testing</id>
+			<build>
+				<plugins>
+					<plugin>
+						<groupId>org.pitest</groupId>
+						<artifactId>pitest-maven</artifactId>
+						<version>${pitest.version}</version>
+						<dependencies>
+							<dependency>
+								<groupId>org.pitest</groupId>
+								<artifactId>pitest-junit5-plugin</artifactId>
+								<version>${pitest.junit5.version}</version>
+							</dependency>
+						</dependencies>
+						<configuration>
+							<targetClasses>
+								<param>com.awesome.testing.ollama.service.*</param>
+								<param>com.awesome.testing.ollama.util.*</param>
+							</targetClasses>
+							<targetTests>
+								<param>com.awesome.testing.ollama.service.*</param>
+								<param>com.awesome.testing.ollama.util.*</param>
+							</targetTests>
+							<threads>4</threads>
+							<timestampedReports>false</timestampedReports>
+							<outputFormats>
+								<param>HTML</param>
+								<param>XML</param>
+							</outputFormats>
+						</configuration>
+					</plugin>
+				</plugins>
+			</build>
+		</profile>
+	</profiles>
 
 </project>
