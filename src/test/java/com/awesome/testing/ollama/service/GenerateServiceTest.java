@@ -73,6 +73,26 @@ class GenerateServiceTest {
     }
 
     @Test
+    void shouldDelayNonTerminalGenerateChunksWithoutWaitingInRealTime() {
+        OllamaMockProperties properties = new OllamaMockProperties();
+        properties.setDefaultModel(DEFAULT_MODEL);
+        properties.setTokenDelay(Duration.ofSeconds(1));
+        GenerateService delayedService = new GenerateService(
+                properties,
+                new GenerateScenarioRepository(new ObjectMapper()));
+        StreamedRequestDto request = StreamedRequestDto.builder()
+                .prompt("Provide a motivational quote")
+                .build();
+
+        StepVerifier.withVirtualTime(() -> delayedService.generateStream(request).take(1))
+                .expectSubscription()
+                .expectNoEvent(Duration.ofMillis(999))
+                .thenAwait(Duration.ofMillis(1))
+                .assertNext(response -> assertThat(response.isDone()).isFalse())
+                .verifyComplete();
+    }
+
+    @Test
     void shouldReturnSingleScenarioResponse() {
         StreamedRequestDto request = StreamedRequestDto.builder()
                 .prompt("Provide a motivational quote")
@@ -83,6 +103,37 @@ class GenerateServiceTest {
                     assertThat(chunk.getModel()).isEqualTo(DEFAULT_MODEL);
                     assertThat(chunk.isDone()).isTrue();
                     assertThat(chunk.getResponse()).contains("Keep shipping mock services");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldUseLastResponseChunkForNonStreamingGeneration() {
+        StreamedRequestDto request = StreamedRequestDto.builder()
+                .prompt("Walk me through the streaming demo for /api/generate")
+                .build();
+
+        StepVerifier.create(generateService.generateSingle(request))
+                .assertNext(chunk -> assertThat(chunk.getResponse())
+                        .isEqualTo("Grab a terminal, run curl with --no-buffer, and you will see the exact same cadence "
+                                + "that shows up in the logs."))
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldReturnSupportedPromptListForUnknownSingleRequest() {
+        StreamedRequestDto request = StreamedRequestDto.builder()
+                .model("custom-generate-model")
+                .prompt("Unknown")
+                .build();
+
+        StepVerifier.create(generateService.generateSingle(request))
+                .assertNext(response -> {
+                    assertThat(response.getModel()).isEqualTo("custom-generate-model");
+                    assertThat(response.isDone()).isTrue();
+                    assertThat(response.getResponse()).contains(
+                            "- Summarize the release plan",
+                            "- Walk me through the streaming demo for /api/generate");
                 })
                 .verifyComplete();
     }

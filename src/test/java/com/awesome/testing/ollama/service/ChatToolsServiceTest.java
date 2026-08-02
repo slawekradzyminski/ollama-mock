@@ -152,4 +152,83 @@ class ChatToolsServiceTest {
                 })
                 .verifyComplete();
     }
+
+    @Test
+    void shouldReturnToolCallForSingleResponseMode() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .model("custom-tools-model")
+                .messages(List.of(ChatMessageDto.builder()
+                        .role("user")
+                        .content("What iphones do we have available? Tell me the details about them")
+                        .build()))
+                .build();
+
+        StepVerifier.create(chatToolsService.chatToolSingle(request))
+                .assertNext(response -> {
+                    assertThat(response.getModel()).isEqualTo("custom-tools-model");
+                    assertThat(response.getMessage().getToolCalls()).singleElement()
+                            .satisfies(toolCall -> assertThat(toolCall.getFunction().getName())
+                                    .isEqualTo("list_products"));
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldUseTheToolCallDelayWithoutWaitingInRealTime() {
+        OllamaMockProperties properties = new OllamaMockProperties();
+        properties.setDefaultModel(DEFAULT_MODEL);
+        properties.setTokenDelay(Duration.ofSeconds(1));
+        properties.setToolCallDelay(Duration.ofSeconds(2));
+        ChatToolsService delayedService = new ChatToolsService(
+                properties,
+                new ChatScenarioRepository(new ObjectMapper()));
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(ChatMessageDto.builder()
+                        .role("user")
+                        .content("What iphones do we have available? Tell me the details about them")
+                        .build()))
+                .build();
+
+        StepVerifier.withVirtualTime(() -> delayedService.chatToolStream(request).take(1))
+                .expectSubscription()
+                .expectNoEvent(Duration.ofMillis(1999))
+                .thenAwait(Duration.ofMillis(1))
+                .assertNext(response -> assertThat(response.getMessage().getToolCalls()).isNotEmpty())
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldPreferToolCallWhenSingleStageAlsoContainsNarration() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(
+                        ChatMessageDto.builder()
+                                .role("user")
+                                .content("Walk me through a two-step catalog lookup where you narrate between tool calls")
+                                .build(),
+                        ChatMessageDto.builder().role("tool").toolName("list_products").build()
+                ))
+                .build();
+
+        StepVerifier.create(chatToolsService.chatToolSingle(request))
+                .assertNext(response -> {
+                    assertThat(response.getMessage().getContent()).isNull();
+                    assertThat(response.getMessage().getToolCalls().getFirst().getFunction().getName())
+                            .isEqualTo("get_product_snapshot");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldReturnCompleteToolPromptListForUnknownSingleRequest() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(ChatMessageDto.builder().role("user").content("Unknown").build()))
+                .build();
+
+        StepVerifier.create(chatToolsService.chatToolSingle(request))
+                .assertNext(response -> assertThat(response.getMessage().getContent())
+                        .contains(
+                                "- What iphones do we have available? Tell me the details about them",
+                                "- Walk me through a two-step catalog lookup where you narrate between tool calls"))
+                .verifyComplete();
+    }
 }
