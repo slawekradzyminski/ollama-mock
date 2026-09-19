@@ -85,7 +85,7 @@ jobs:
       - uses: docker/setup-qemu-action@v4.2.0
       - uses: docker/setup-buildx-action@v4.3.0
       - name: Build smoke-test image
-        uses: docker/build-push-action@v7.3.0
+        uses: docker/build-push-action@v7.4.0
         with:
           context: .
           load: true
@@ -130,7 +130,7 @@ jobs:
             org.opencontainers.image.version=${{ steps.version.outputs.value }}
       - name: Publish multi-platform image
         id: publish
-        uses: docker/build-push-action@v7.3.0
+        uses: docker/build-push-action@v7.4.0
         with:
           context: .
           platforms: linux/amd64,linux/arm64
