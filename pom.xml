@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.0</version>
+		<version>4.1.1</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.awesome.testing</groupId>
@@ -29,7 +29,7 @@
 	<properties>
 		<revision>1.0.9</revision>
 		<java.version>25</java.version>
-		<pitest.version>1.25.9</pitest.version>
+		<pitest.version>1.30.0</pitest.version>
 		<pitest.junit5.version>1.2.3</pitest.junit5.version>
 	</properties>
 	<dependencies>
@@ -44,7 +44,7 @@
 		<dependency>
 			<groupId>org.projectlombok</groupId>
 			<artifactId>lombok</artifactId>
-			<version>1.18.46</version>
+			<version>1.18.48</version>
 			<optional>true</optional>
 		</dependency>
 
@@ -103,7 +103,7 @@
 						<path>
 							<groupId>org.projectlombok</groupId>
 							<artifactId>lombok</artifactId>
-							<version>1.18.46</version>
+							<version>1.18.48</version>
 						</path>
 					</annotationProcessorPaths>
 				</configuration>
