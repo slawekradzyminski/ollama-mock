@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>4.1.1</version>
+		<version>4.1.2</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>com.awesome.testing</groupId>
@@ -27,7 +27,10 @@
 		<url/>
 	</scm>
 	<properties>
-		<revision>1.0.10</revision>
+        <!-- CVE-2026 Jackson fixes: keep each existing release family on its patched BOM. -->
+        <jackson-2-bom.version>2.21.8</jackson-2-bom.version>
+        <jackson-bom.version>3.1.8</jackson-bom.version>
+		<revision>1.0.11</revision>
 		<java.version>25</java.version>
 		<pitest.version>1.30.0</pitest.version>
 		<pitest.junit5.version>1.2.3</pitest.junit5.version>
