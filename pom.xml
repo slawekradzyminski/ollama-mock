@@ -27,7 +27,7 @@
 		<url/>
 	</scm>
 	<properties>
-		<revision>1.0.9</revision>
+		<revision>1.0.10</revision>
 		<java.version>25</java.version>
 		<pitest.version>1.30.0</pitest.version>
 		<pitest.junit5.version>1.2.3</pitest.junit5.version>
