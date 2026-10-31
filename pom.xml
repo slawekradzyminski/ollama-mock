@@ -32,7 +32,7 @@
         <jackson-bom.version>3.1.8</jackson-bom.version>
 		<revision>1.0.11</revision>
 		<java.version>25</java.version>
-		<pitest.version>1.30.0</pitest.version>
+		<pitest.version>1.30.1</pitest.version>
 		<pitest.junit5.version>1.2.3</pitest.junit5.version>
 	</properties>
 	<dependencies>
@@ -74,7 +74,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-enforcer-plugin</artifactId>
-				<version>3.6.3</version>
+				<version>3.7.0</version>
 				<executions>
 					<execution>
 						<id>enforce-build-runtime</id>
