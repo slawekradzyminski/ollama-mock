@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM eclipse-temurin:25-jdk-jammy@sha256:07a4ee373cd86f337e62cb8149f1e0a9f08aaf3a18c27509a493dda119fb480c AS build
+FROM eclipse-temurin:25-jdk-jammy@sha256:e4f029273ed9e4444697df30bb6098dbe51477291598aebc54dd0b48d95d6ae7 AS build
 # OpenJDK CVE-2026-91403 mitigation; pinned artifact provenance is in security/java/.
 COPY security/java/blocked.certs ${JAVA_HOME}/lib/security/blocked.certs
 RUN echo "2596bb6dda83c66d96c5a252d7b2ae1f24cc1ae3f1890223b4f3591a8d52bf10  ${JAVA_HOME}/lib/security/blocked.certs" | sha256sum --check -
@@ -17,7 +17,7 @@ RUN --mount=type=cache,target=/root/.m2 \
     if [ -n "${REVISION}" ]; then set -- "-Drevision=${REVISION}"; else set --; fi && \
     ./mvnw --batch-mode --no-transfer-progress -Dmaven.test.skip=true "$@" clean package
 
-FROM eclipse-temurin:25-jre-jammy@sha256:e0d8c47eccd7ec82d635542dfcd1f2b1293add6bdd7ffbeb650f8ec1b1335425
+FROM eclipse-temurin:25-jre-jammy@sha256:659b528cca74a0edc5c25315ec5819f35bce40bbcec645c4c534987e4c6be7c1
 # OpenJDK CVE-2026-91403 mitigation; pinned artifact provenance is in security/java/.
 COPY security/java/blocked.certs ${JAVA_HOME}/lib/security/blocked.certs
 RUN echo "2596bb6dda83c66d96c5a252d7b2ae1f24cc1ae3f1890223b4f3591a8d52bf10  ${JAVA_HOME}/lib/security/blocked.certs" | sha256sum --check -
