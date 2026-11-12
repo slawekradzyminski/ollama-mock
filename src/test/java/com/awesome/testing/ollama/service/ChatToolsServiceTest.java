@@ -231,4 +231,62 @@ class ChatToolsServiceTest {
                                 "- Walk me through a two-step catalog lookup where you narrate between tool calls"))
                 .verifyComplete();
     }
+
+    @Test
+    void shouldStartToolLoopOfLatestUserPromptInMultiTurnConversation() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(
+                        ChatMessageDto.builder()
+                                .role("user")
+                                .content("What iphones do we have available? Tell me the details about them")
+                                .build(),
+                        ChatMessageDto.builder().role("assistant").content("iPhone 13 Pro is in stock.").build(),
+                        ChatMessageDto.builder().role("user").content("What Beauty products do we have available?").build()))
+                .build();
+
+        StepVerifier.create(chatToolsService.chatToolSingle(request))
+                .assertNext(response -> {
+                    var toolCall = response.getMessage().getToolCalls().getFirst().getFunction();
+                    assertThat(toolCall.getName()).isEqualTo("list_products");
+                    assertThat(toolCall.getArguments()).containsEntry("category", "beauty");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldFinishToolLoopOfLatestUserPromptAfterItsToolResult() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(
+                        ChatMessageDto.builder()
+                                .role("user")
+                                .content("What iphones do we have available? Tell me the details about them")
+                                .build(),
+                        ChatMessageDto.builder().role("assistant").content("iPhone 13 Pro is in stock.").build(),
+                        ChatMessageDto.builder().role("user").content("What Beauty products do we have available?").build(),
+                        ChatMessageDto.builder().role("tool").toolName("list_products").content("{}").build()))
+                .build();
+
+        StepVerifier.create(chatToolsService.chatToolSingle(request))
+                .assertNext(response -> assertThat(response.getMessage().getContent())
+                        .startsWith("The beauty shelf currently offers"))
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldIgnoreAssistantMessagesThatRepeatAKnownToolPrompt() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(
+                        ChatMessageDto.builder().role("user").content("What Beauty products do we have available?").build(),
+                        ChatMessageDto.builder()
+                                .role("assistant")
+                                .content("What iphones do we have available? Tell me the details about them")
+                                .build(),
+                        ChatMessageDto.builder().role("tool").toolName("list_products").content("{}").build()))
+                .build();
+
+        StepVerifier.create(chatToolsService.chatToolSingle(request))
+                .assertNext(response -> assertThat(response.getMessage().getContent())
+                        .startsWith("The beauty shelf currently offers"))
+                .verifyComplete();
+    }
 }

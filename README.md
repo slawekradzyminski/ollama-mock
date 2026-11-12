@@ -11,6 +11,8 @@ Lightweight Spring Boot service that emulates the Ollama HTTP API for local deve
 | `POST /api/chat/tools` (or `/chat/tools`) | `src/main/resources/scenarios/chat-scenarios.json` | ❌ | ✅ | Tool-calling loops: `list_products` → `get_product_snapshot` etc. Tool schemas exposed via `GET /api/chat/tools/definitions`. |
 | `POST /api/chat` with non-empty `tools` array | auto-delegates to `ChatToolsService` so legacy callers work without changing URLs. |
 
+The latest user message in `messages` selects the scenario, so a multi-turn history answers its newest question; earlier user messages are consulted only when the newer ones match no scenario. Tool chats follow the same rule, so a follow-up question starts its own tool loop.
+
 Each scenario file contains deterministic steps. Add or modify prompts by editing the JSON and restarting the app.
 
 ### Thinking Flag & Streaming Delays

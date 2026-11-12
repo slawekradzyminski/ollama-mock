@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.awesome.testing.ollama.config.OllamaMockProperties;
 import com.awesome.testing.ollama.dto.ChatMessageDto;
 import com.awesome.testing.ollama.dto.ChatRequestDto;
+import com.awesome.testing.ollama.dto.ChatResponseDto;
 import com.awesome.testing.ollama.scenario.chatbasic.ChatDialogueScenarioRepository;
 import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
@@ -169,5 +170,85 @@ class ChatServiceTest {
                                 "- Give me a quick status update on the Ollama mock",
                                 "- Narrate the full streaming timeline for this mock"))
                 .verifyComplete();
+    }
+
+    private static final String STATUS_PROMPT = "Give me a quick status update on the Ollama mock";
+    private static final String LIMITATIONS_PROMPT = "What limitations should I expect from the mock?";
+
+    @Test
+    void shouldStreamAnswerToLatestUserPromptInMultiTurnHistory() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(
+                        user(STATUS_PROMPT),
+                        assistant("The Ollama mock is up on port 11434."),
+                        user(LIMITATIONS_PROMPT)))
+                .build();
+
+        StepVerifier.create(chatService.chatStream(request).collectList())
+                .assertNext(chunks -> assertThat(streamedContent(chunks))
+                        .startsWith("It only understands a curated set of prompts")
+                        .doesNotContain("port 11434"))
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldAnswerLatestUserPromptWhenStreamingIsDisabled() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(
+                        user(STATUS_PROMPT),
+                        assistant("ok"),
+                        user(LIMITATIONS_PROMPT)))
+                .build();
+
+        StepVerifier.create(chatService.chatSingle(request))
+                .assertNext(response -> assertThat(response.getMessage().getContent())
+                        .startsWith("It only understands a curated set of prompts"))
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldFallBackToEarlierKnownPromptWhenLatestPromptIsUnknown() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(
+                        user(LIMITATIONS_PROMPT),
+                        assistant("ok"),
+                        user(STATUS_PROMPT),
+                        assistant("ok"),
+                        user("Thanks!")))
+                .build();
+
+        StepVerifier.create(chatService.chatSingle(request))
+                .assertNext(response -> assertThat(response.getMessage().getContent())
+                        .contains("port 11434"))
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldIgnoreAssistantMessagesThatRepeatAKnownPrompt() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(
+                        user(STATUS_PROMPT),
+                        assistant(LIMITATIONS_PROMPT)))
+                .build();
+
+        StepVerifier.create(chatService.chatSingle(request))
+                .assertNext(response -> assertThat(response.getMessage().getContent())
+                        .contains("port 11434"))
+                .verifyComplete();
+    }
+
+    private static ChatMessageDto user(String content) {
+        return ChatMessageDto.builder().role("user").content(content).build();
+    }
+
+    private static ChatMessageDto assistant(String content) {
+        return ChatMessageDto.builder().role("assistant").content(content).build();
+    }
+
+    private static String streamedContent(List<ChatResponseDto> chunks) {
+        return chunks.stream()
+                .filter(chunk -> chunk.getMessage() != null && chunk.getMessage().getContent() != null)
+                .map(chunk -> chunk.getMessage().getContent())
+                .collect(Collectors.joining());
     }
 }

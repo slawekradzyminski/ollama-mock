@@ -91,6 +91,22 @@ assert "port 11434" in payload["message"]["content"], payload
 PY
 
 curl --fail --silent --show-error \
+  --header 'Content-Type: application/json' \
+  --data '{"model":"qwen3.5:2b","messages":[{"role":"user","content":"Give me a quick status update on the Ollama mock"},{"role":"assistant","content":"ok"},{"role":"user","content":"What limitations should I expect from the mock?"}],"think":false,"stream":false}' \
+  "${base_url}/api/chat" \
+  --output "${temporary_directory}/chat-history.json"
+
+python3 - "${temporary_directory}/chat-history.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as response_file:
+    payload = json.load(response_file)
+content = payload["message"]["content"]
+assert content.startswith("It only understands a curated set of prompts"), payload
+PY
+
+curl --fail --silent --show-error \
   "${base_url}/api/chat/tools/definitions" \
   --output "${temporary_directory}/tool-definitions.json"
 

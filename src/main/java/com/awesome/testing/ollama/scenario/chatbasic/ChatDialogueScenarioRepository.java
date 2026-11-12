@@ -31,11 +31,15 @@ public class ChatDialogueScenarioRepository {
         log.info("Loaded {} chat dialogue scenario(s) from {}", definitions.size(), SCENARIO_PATH);
     }
 
+    /**
+     * Selects the scenario of the most recent user prompt that matches one. Earlier prompts are
+     * consulted only when later ones are unknown, so a multi-turn history answers its latest question.
+     */
     public Optional<ChatDialogueScenarioDefinition> findScenario(List<ChatMessageDto> messages) {
         if (CollectionUtils.isEmpty(messages)) {
             return Optional.empty();
         }
-        return messages.stream()
+        return messages.reversed().stream()
                 .filter(msg -> "user".equalsIgnoreCase(msg.getRole()))
                 .map(ChatMessageDto::getContent)
                 .filter(StringUtils::hasText)

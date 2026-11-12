@@ -38,11 +38,15 @@ public class ChatScenarioRepository {
         return Optional.ofNullable(promptIndex.get(normalize(prompt)));
     }
 
+    /**
+     * Selects the scenario of the most recent user prompt that matches one, so a follow-up question
+     * in the same conversation starts its own tool loop instead of replaying the first one.
+     */
     public Optional<ChatScenarioDefinition> findScenarioForConversation(List<ChatMessageDto> messages) {
         if (CollectionUtils.isEmpty(messages)) {
             return Optional.empty();
         }
-        return messages.stream()
+        return messages.reversed().stream()
                 .filter(msg -> "user".equalsIgnoreCase(msg.getRole()))
                 .map(ChatMessageDto::getContent)
                 .map(this::findByPrompt)
