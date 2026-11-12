@@ -20,6 +20,7 @@ Each scenario file contains deterministic steps. Add or modify prompts by editin
 - `/api/generate` and `/api/chat` include “thinking” chunks **only** when the request payload sets `"think": true`.
 - `/api/chat/tools` never emits `thinking` to match how tool handlers expect payloads.
 - All responses stream token-by-token with a configurable delay (`ollama.mock.token-delay`, default `150ms`). Tool calls pause for `ollama.mock.tool-call-delay` (default `1s`) before emitting the tool payload to mimic function execution.
+- With `"stream": false`, `/api/generate`, `/api/chat` and `/api/chat/tools` return one JSON object with `"done": true`, like Ollama.
 - Requests that omit `model` resolve to `qwen3.5:2b`, keeping the mock aligned with the migration target.
 
 ## Running Locally

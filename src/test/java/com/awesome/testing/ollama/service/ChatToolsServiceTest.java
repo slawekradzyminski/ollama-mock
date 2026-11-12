@@ -289,4 +289,65 @@ class ChatToolsServiceTest {
                         .startsWith("The beauty shelf currently offers"))
                 .verifyComplete();
     }
+
+    @Test
+    void shouldMarkNonStreamingToolCallReplyAsDone() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .model("custom-model")
+                .messages(List.of(ChatMessageDto.builder().role("user").content("What Beauty products do we have available?").build()))
+                .build();
+
+        StepVerifier.create(chatToolsService.chatToolSingle(request))
+                .assertNext(response -> {
+                    assertThat(response.isDone()).isTrue();
+                    assertThat(response.getModel()).isEqualTo("custom-model");
+                    assertThat(response.getCreatedAt()).isNotBlank();
+                    assertThat(response.getMessage().getToolCalls().getFirst().getFunction().getName())
+                            .isEqualTo("list_products");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldMarkNonStreamingFinalAnswerAsDone() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(
+                        ChatMessageDto.builder().role("user").content("What Beauty products do we have available?").build(),
+                        ChatMessageDto.builder().role("tool").toolName("list_products").content("{}").build()))
+                .build();
+
+        StepVerifier.create(chatToolsService.chatToolSingle(request))
+                .assertNext(response -> {
+                    assertThat(response.isDone()).isTrue();
+                    assertThat(response.getMessage().getContent()).startsWith("The beauty shelf currently offers");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldMarkNonStreamingUnsupportedToolPromptReplyAsDone() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(ChatMessageDto.builder().role("user").content("Unknown").build()))
+                .build();
+
+        StepVerifier.create(chatToolsService.chatToolSingle(request))
+                .assertNext(response -> assertThat(response.isDone()).isTrue())
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldMarkNonStreamingUnhandledStageReplyAsDone() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(
+                        ChatMessageDto.builder().role("user").content("What Beauty products do we have available?").build(),
+                        ChatMessageDto.builder().role("tool").toolName("get_product_snapshot").content("{}").build()))
+                .build();
+
+        StepVerifier.create(chatToolsService.chatToolSingle(request))
+                .assertNext(response -> {
+                    assertThat(response.isDone()).isTrue();
+                    assertThat(response.getMessage().getContent()).contains("is not configured yet");
+                })
+                .verifyComplete();
+    }
 }

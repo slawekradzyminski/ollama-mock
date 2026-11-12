@@ -126,7 +126,7 @@ class ChatServiceTest {
         StepVerifier.create(chatService.chatSingle(request))
                 .assertNext(response -> {
                     assertThat(response.getModel()).isEqualTo("custom-chat-model");
-                    assertThat(response.isDone()).isFalse();
+                    assertThat(response.isDone()).isTrue();
                     assertThat(response.getMessage().getThinking()).contains("Collecting the internal notes");
                     assertThat(response.getMessage().getContent())
                             .contains("First you fire a request", "Then the thinking paragraph", "Finally the assistant text")
@@ -234,6 +234,37 @@ class ChatServiceTest {
         StepVerifier.create(chatService.chatSingle(request))
                 .assertNext(response -> assertThat(response.getMessage().getContent())
                         .contains("port 11434"))
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldMarkNonStreamingScenarioReplyAsDone() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(user(STATUS_PROMPT)))
+                .build();
+
+        StepVerifier.create(chatService.chatSingle(request))
+                .assertNext(response -> {
+                    assertThat(response.isDone()).isTrue();
+                    assertThat(response.getModel()).isEqualTo(DEFAULT_MODEL);
+                    assertThat(response.getCreatedAt()).isNotBlank();
+                    assertThat(response.getMessage().getRole()).isEqualTo("assistant");
+                    assertThat(response.getMessage().getContent()).contains("port 11434");
+                })
+                .verifyComplete();
+    }
+
+    @Test
+    void shouldMarkNonStreamingUnsupportedPromptReplyAsDone() {
+        ChatRequestDto request = ChatRequestDto.builder()
+                .messages(List.of(user("Random question")))
+                .build();
+
+        StepVerifier.create(chatService.chatSingle(request))
+                .assertNext(response -> {
+                    assertThat(response.isDone()).isTrue();
+                    assertThat(response.getMessage().getContent()).contains("Sorry, only these chat prompts are supported");
+                })
                 .verifyComplete();
     }
 
