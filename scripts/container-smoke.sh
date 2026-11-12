@@ -85,9 +85,26 @@ import sys
 with open(sys.argv[1], encoding="utf-8") as response_file:
     payload = json.load(response_file)
 assert payload["model"] == sys.argv[2], payload
-assert isinstance(payload["done"], bool), payload
+assert payload["done"] is True, payload
 assert payload["message"]["role"] == "assistant", payload
 assert "port 11434" in payload["message"]["content"], payload
+PY
+
+curl --fail --silent --show-error \
+  --header 'Content-Type: application/json' \
+  --data '{"model":"qwen3.5:2b","messages":[{"role":"user","content":"Give me a quick status update on the Ollama mock"},{"role":"assistant","content":"ok"},{"role":"user","content":"What limitations should I expect from the mock?"}],"think":false,"stream":false}' \
+  "${base_url}/api/chat" \
+  --output "${temporary_directory}/chat-history.json"
+
+python3 - "${temporary_directory}/chat-history.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as response_file:
+    payload = json.load(response_file)
+assert payload["done"] is True, payload
+content = payload["message"]["content"]
+assert content.startswith("It only understands a curated set of prompts"), payload
 PY
 
 curl --fail --silent --show-error \
@@ -110,7 +127,7 @@ names = {definition["function"]["name"] for definition in definitions}
 assert {"list_products", "get_product_snapshot"}.issubset(names), names
 with open(sys.argv[2], encoding="utf-8") as response_file:
     payload = json.load(response_file)
-assert isinstance(payload["done"], bool), payload
+assert payload["done"] is True, payload
 tool_calls = payload["message"]["tool_calls"]
 assert tool_calls[0]["function"]["name"] == "list_products", payload
 PY

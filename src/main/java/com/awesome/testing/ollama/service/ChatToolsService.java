@@ -44,12 +44,12 @@ public class ChatToolsService {
 
     public Mono<ChatResponseDto> chatToolSingle(ChatRequestDto request) {
         String model = resolveModel(request.getModel());
-        return scenarioRepository.findScenarioForConversation(request.getMessages())
+        ChatResponseDto reply = scenarioRepository.findScenarioForConversation(request.getMessages())
                 .map(scenario -> determineStage(scenario, request)
                         .map(stage -> resolveSingleStageChunk(model, stage))
                         .orElseGet(() -> unhandledStageChunk(model, scenario.getPrompt())))
-                .map(Mono::just)
-                .orElseGet(() -> Mono.just(unsupportedPromptChunk(model)));
+                .orElseGet(() -> unsupportedPromptChunk(model));
+        return Mono.just(completed(reply));
     }
 
     private String resolveModel(String requestedModel) {
@@ -169,6 +169,16 @@ public class ChatToolsService {
         return ChatResponseDto.builder()
                 .model(model)
                 .createdAt(OffsetDateTime.now(ZoneOffset.UTC).toString())
+                .done(true)
+                .build();
+    }
+
+    /** A non-streaming reply is the whole answer, so it is final like Ollama's ({@code done: true}). */
+    private static ChatResponseDto completed(ChatResponseDto reply) {
+        return ChatResponseDto.builder()
+                .model(reply.getModel())
+                .createdAt(reply.getCreatedAt())
+                .message(reply.getMessage())
                 .done(true)
                 .build();
     }

@@ -41,9 +41,10 @@ public class ChatService {
     public Mono<ChatResponseDto> chatSingle(ChatRequestDto request) {
         String model = resolveModel(request.getModel());
         boolean thinkingEnabled = Boolean.TRUE.equals(request.getThink());
-        return scenarioRepository.findScenario(request.getMessages())
-                .map(scenario -> Mono.just(aggregateScenario(model, scenario, thinkingEnabled)))
-                .orElseGet(() -> Mono.just(unsupportedPrompt(model)));
+        ChatResponseDto reply = scenarioRepository.findScenario(request.getMessages())
+                .map(scenario -> aggregateScenario(model, scenario, thinkingEnabled))
+                .orElseGet(() -> unsupportedPrompt(model));
+        return Mono.just(completed(reply));
     }
 
     private String resolveModel(String requestedModel) {
@@ -109,6 +110,16 @@ public class ChatService {
         return ChatResponseDto.builder()
                 .model(model)
                 .createdAt(OffsetDateTime.now(ZoneOffset.UTC).toString())
+                .done(true)
+                .build();
+    }
+
+    /** A non-streaming reply is the whole answer, so it is final like Ollama's ({@code done: true}). */
+    private static ChatResponseDto completed(ChatResponseDto reply) {
+        return ChatResponseDto.builder()
+                .model(reply.getModel())
+                .createdAt(reply.getCreatedAt())
+                .message(reply.getMessage())
                 .done(true)
                 .build();
     }
