@@ -9,6 +9,8 @@ public class ChatScenarioStageDefinition {
     private String toolName;
     private String thinking;
     private String response;
+    /** When set, the answer is built from the tool results instead of {@link #response}. */
+    private ChatScenarioGroundedAnswer grounded;
     private ChatScenarioToolCallDefinition toolCall;
 
     public ChatScenarioTrigger getTriggerEnum() {

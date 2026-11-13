@@ -132,4 +132,32 @@ tool_calls = payload["message"]["tool_calls"]
 assert tool_calls[0]["function"]["name"] == "list_products", payload
 PY
 
+status="$(curl --silent --show-error \
+  --header 'Content-Type: application/json' \
+  --data '{"model":"no-such-model:1b","prompt":"Provide a motivational quote","stream":false}' \
+  --output "${temporary_directory}/unknown-model.json" --write-out '%{http_code}' \
+  "${base_url}/api/generate")"
+[[ "${status}" == "404" ]] || { echo "unknown model returned ${status}, expected 404" >&2; exit 1; }
+python3 - "${temporary_directory}/unknown-model.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as response_file:
+    assert json.load(response_file) == {"error": "model 'no-such-model:1b' not found"}
+PY
+
+curl --fail --silent --show-error \
+  --header 'Content-Type: application/json' \
+  --data '{"model":"qwen3.5:2b","messages":[{"role":"user","content":"List the laptops under $1500."},{"role":"tool","tool_name":"list_products","content":"{\"products\":[{\"id\":3,\"name\":\"MacBook Pro 14\",\"price\":1999.99,\"stockQuantity\":25}],\"total\":1}"}],"tools":[{"type":"function","function":{"name":"list_products"}}],"stream":false}' \
+  "${base_url}/api/chat" \
+  --output "${temporary_directory}/grounded.json"
+python3 - "${temporary_directory}/grounded.json" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as response_file:
+    payload = json.load(response_file)
+assert payload["message"]["content"] == "The catalog has no laptops under $1500 right now.", payload
+PY
+
 echo "Ollama Mock container contract passed at ${base_url}"

@@ -48,10 +48,7 @@ public class ChatService {
     }
 
     private String resolveModel(String requestedModel) {
-        if (StringUtils.hasText(requestedModel)) {
-            return requestedModel;
-        }
-        return properties.getDefaultModel();
+        return ModelCatalog.resolve(properties, requestedModel);
     }
 
     private Flux<ChatResponseDto> streamScenario(String model,

@@ -23,6 +23,44 @@ Each scenario file contains deterministic steps. Add or modify prompts by editin
 - With `"stream": false`, `/api/generate`, `/api/chat` and `/api/chat/tools` return one JSON object with `"done": true`, like Ollama.
 - Requests that omit `model` resolve to `qwen3.5:2b`, keeping the mock aligned with the migration target.
 
+### Models
+
+The mock serves the default model (`OLLAMA_MOCK_MODEL`, `qwen3.5:2b`) plus the comma-separated
+`OLLAMA_MOCK_MODELS` (`ollama.mock.models`), which defaults to the frontend's default model
+`hf.co/prism-ml/Bonsai-27B-gguf:Q1_0` and the Docker Model Runner name
+`hf.co/unsloth/Qwen3.5-2B-GGUF:Q4_K_M`. Like real Ollama, a name without a tag means `:latest`,
+and any other model is rejected on `/api/generate`, `/api/chat` and `/api/chat/tools` before a
+stream starts:
+
+```
+HTTP/1.1 404 Not Found
+{"error":"model 'no-such-model:1b' not found"}
+```
+
+### Grounded tool answers
+
+The final answer of a tool scenario is composed from the tool results the client sent back in the
+current turn (the messages after the latest user message), never from a canned product list:
+
+- `list_products` results are listed by name (the backend's tool returns ids and names; price and
+  stock are added when a result carries them); an empty result gives the scenario's `emptyAnswer`,
+  and a result with `error` (or unreadable content) is reported as a failed lookup.
+- A `get_product_snapshot` result adds `Snapshot for <name>: priced at $price with N unit(s) in stock.`
+- A snapshot call asks for the first product the catalog returned (`{{firstListedProductId}}`); when
+  the catalog returned none, the mock skips the snapshot call and answers from the empty result.
+- "List the laptops under $1500." asks for the seeded `computers` category. The backend tool has no
+  price filter and returns no prices, so the answer lists the computers it returned and says the
+  $1500 limit is unconfirmed (`maxPrice` drops priced results above the limit). "What gaming
+  accessories can you recommend?" asks for `gaming`.
+
+**Exception: the beauty scenario keeps its canned answer.** "What Beauty products do we have
+available?" still ends with "The beauty shelf currently offers: Hydrating Face Serum and Velvet
+Matte Lipstick. Let me know if you want pricing for either product." The AI testers course
+(`ai-testers-api` lessons l12 to l20, branches `master` and `graphql`) asserts this exact text in
+`tests/api/ollama/chat-tools.post.spec.ts`, and the seeded catalog has no beauty products, so a
+grounded answer would break every published lesson. It stays verbatim until the course changes;
+treat it as a known teaching artefact, not as catalog data. Do not use it as a template for new scenarios.
+
 ## Running Locally
 
 ```bash
@@ -129,6 +167,8 @@ GitHub publishing uses `GITHUB_TOKEN`. Docker Hub publishing requires repository
    - `chat-scenarios.json` for `/api/chat/tools`.
 2. Restart the app (or re-run tests) to load the new scenario.
 3. For tool scenarios, include separate stages for user-triggered tool calls, intermediate tool responses, and final assistant summaries.
+   Give the final stage a `grounded` object (`listIntro`, `emptyAnswer`, optional `maxPrice` and `closing`)
+   instead of a fixed `response`, so the answer only names what the tools returned.
 
 ## Status & Next Steps
 
