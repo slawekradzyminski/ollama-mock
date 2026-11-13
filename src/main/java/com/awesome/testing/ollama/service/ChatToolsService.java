@@ -12,6 +12,7 @@ import com.awesome.testing.ollama.scenario.chat.ChatScenarioStageDefinition;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class ChatToolsService {
 
     private final OllamaMockProperties properties;
     private final ChatScenarioRepository scenarioRepository;
+    private final ToolAnswerComposer answerComposer;
 
     public Flux<ChatResponseDto> chatToolStream(ChatRequestDto request) {
         String model = resolveModel(request.getModel());
@@ -46,17 +48,14 @@ public class ChatToolsService {
         String model = resolveModel(request.getModel());
         ChatResponseDto reply = scenarioRepository.findScenarioForConversation(request.getMessages())
                 .map(scenario -> determineStage(scenario, request)
-                        .map(stage -> resolveSingleStageChunk(model, stage))
+                        .map(stage -> resolveSingleStageChunk(model, planStage(scenario, stage, request)))
                         .orElseGet(() -> unhandledStageChunk(model, scenario.getPrompt())))
                 .orElseGet(() -> unsupportedPromptChunk(model));
         return Mono.just(completed(reply));
     }
 
     private String resolveModel(String requestedModel) {
-        if (StringUtils.hasText(requestedModel)) {
-            return requestedModel;
-        }
-        return properties.getDefaultModel();
+        return ModelCatalog.resolve(properties, requestedModel);
     }
 
     private Flux<ChatResponseDto> streamStage(String model,
@@ -68,24 +67,70 @@ public class ChatToolsService {
                     "This step for prompt \"%s\" is not configured yet. Please restart the conversation."
                             .formatted(scenario.getPrompt()));
         }
-        ChatScenarioStageDefinition resolvedStage = stage.get();
+        StagePlan plan = planStage(scenario, stage.get(), request);
 
         Flux<ChatResponseDto> responseStream = Flux.empty();
-        if (StringUtils.hasText(resolvedStage.getResponse())) {
-            responseStream = streamContentTokens(model, resolvedStage.getResponse());
+        if (StringUtils.hasText(plan.content())) {
+            responseStream = streamContentTokens(model, plan.content());
         }
 
         Flux<ChatResponseDto> toolCallStream = Flux.empty();
-        if (resolvedStage.getToolCall() != null) {
-            log.info("[chat-tools][call] prompt='{}' issuing {}", scenario.getPrompt(), resolvedStage.getToolCall().getName());
-            toolCallStream = Flux.just(toolCallChunk(model, resolvedStage));
-        }
-
-        if (resolvedStage.getToolCall() == null && !StringUtils.hasText(resolvedStage.getResponse())) {
-            return Flux.empty();
+        if (plan.toolName() != null) {
+            log.info("[chat-tools][call] prompt='{}' issuing {}", scenario.getPrompt(), plan.toolName());
+            toolCallStream = Flux.just(toolCallChunk(model, plan));
         }
 
         return responseStream.concatWith(toolCallStream);
+    }
+
+    /**
+     * What a stage says and which tool it calls for this conversation. Grounded answers are composed
+     * from the tool results of the current turn; a tool call whose arguments need a product from an
+     * empty catalog result is skipped and the scenario's grounded answer is given instead.
+     */
+    private StagePlan planStage(ChatScenarioDefinition scenario,
+                                ChatScenarioStageDefinition stage,
+                                ChatRequestDto request) {
+        List<ChatMessageDto> turn = currentTurn(request);
+        if (stage.getToolCall() != null) {
+            Optional<Map<String, Object>> arguments =
+                    answerComposer.resolveArguments(stage.getToolCall().getArguments(), turn);
+            if (arguments.isEmpty()) {
+                return new StagePlan(groundedAnswer(scenario, turn), null, null);
+            }
+            return new StagePlan(content(stage, turn), stage.getToolCall().getName(), arguments.get());
+        }
+        return new StagePlan(content(stage, turn), null, null);
+    }
+
+    private String content(ChatScenarioStageDefinition stage, List<ChatMessageDto> turn) {
+        if (stage.getGrounded() != null) {
+            return answerComposer.compose(stage.getGrounded(), turn);
+        }
+        return stage.getResponse();
+    }
+
+    private String groundedAnswer(ChatScenarioDefinition scenario, List<ChatMessageDto> turn) {
+        return scenario.getStages().reversed().stream()
+                .map(ChatScenarioStageDefinition::getGrounded)
+                .filter(java.util.Objects::nonNull)
+                .findFirst()
+                .map(grounded -> answerComposer.compose(grounded, turn))
+                .orElse("The catalog returned no matching products.");
+    }
+
+    /** Messages after the latest user message: the tool results that answer the current question. */
+    private List<ChatMessageDto> currentTurn(ChatRequestDto request) {
+        List<ChatMessageDto> messages = Optional.ofNullable(request.getMessages()).orElse(List.of());
+        for (int i = messages.size() - 1; i >= 0; i--) {
+            if ("user".equalsIgnoreCase(messages.get(i).getRole())) {
+                return messages.subList(i + 1, messages.size());
+            }
+        }
+        return messages;
+    }
+
+    private record StagePlan(String content, String toolName, Map<String, Object> arguments) {
     }
 
     private Optional<ChatScenarioStageDefinition> determineStage(ChatScenarioDefinition scenario,
@@ -141,12 +186,12 @@ public class ChatToolsService {
         return prefix + "\n" + joined;
     }
 
-    private ChatResponseDto toolCallChunk(String model, ChatScenarioStageDefinition stage) {
+    private ChatResponseDto toolCallChunk(String model, StagePlan plan) {
         ToolCallDto toolCall = ToolCallDto.builder()
                 .id("toolcall-" + UUID.randomUUID())
                 .function(ToolCallFunctionDto.builder()
-                        .name(stage.getToolCall().getName())
-                        .arguments(stage.getToolCall().getArguments())
+                        .name(plan.toolName())
+                        .arguments(plan.arguments())
                         .build())
                 .build();
 
@@ -216,15 +261,15 @@ public class ChatToolsService {
         return Mono.just(chunk).delayElement(delay);
     }
 
-    private ChatResponseDto resolveSingleStageChunk(String model, ChatScenarioStageDefinition stage) {
-        if (stage.getToolCall() != null) {
-            if (StringUtils.hasText(stage.getResponse())) {
+    private ChatResponseDto resolveSingleStageChunk(String model, StagePlan plan) {
+        if (plan.toolName() != null) {
+            if (StringUtils.hasText(plan.content())) {
                 log.debug("[chat-tools][single] stage contains response and tool call; returning tool call chunk");
             }
-            return toolCallChunk(model, stage);
+            return toolCallChunk(model, plan);
         }
-        if (StringUtils.hasText(stage.getResponse())) {
-            return contentChunk(model, stage.getResponse());
+        if (StringUtils.hasText(plan.content())) {
+            return contentChunk(model, plan.content());
         }
         return contentChunk(model, "(no response configured for this stage)");
     }

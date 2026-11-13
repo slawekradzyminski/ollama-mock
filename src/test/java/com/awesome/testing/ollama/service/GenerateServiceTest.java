@@ -8,6 +8,7 @@ import com.awesome.testing.ollama.dto.StreamedRequestDto;
 import com.awesome.testing.ollama.scenario.generate.GenerateScenarioRepository;
 import tools.jackson.databind.ObjectMapper;
 import java.time.Duration;
+import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -23,6 +24,7 @@ class GenerateServiceTest {
     void setUp() {
         OllamaMockProperties properties = new OllamaMockProperties();
         properties.setDefaultModel(DEFAULT_MODEL);
+        properties.setModels(List.of("custom-generate-model"));
         properties.setTokenDelay(Duration.ZERO);
         generateService = new GenerateService(
                 properties,
@@ -76,6 +78,7 @@ class GenerateServiceTest {
     void shouldDelayNonTerminalGenerateChunksWithoutWaitingInRealTime() {
         OllamaMockProperties properties = new OllamaMockProperties();
         properties.setDefaultModel(DEFAULT_MODEL);
+        properties.setModels(List.of("custom-generate-model"));
         properties.setTokenDelay(Duration.ofSeconds(1));
         GenerateService delayedService = new GenerateService(
                 properties,

@@ -25,6 +25,7 @@ class ChatServiceTest {
     void setUp() {
         OllamaMockProperties properties = new OllamaMockProperties();
         properties.setDefaultModel(DEFAULT_MODEL);
+        properties.setModels(List.of("custom-chat-model"));
         properties.setTokenDelay(Duration.ZERO);
         chatService = new ChatService(
                 properties,
@@ -139,6 +140,7 @@ class ChatServiceTest {
     void shouldDelayNonTerminalChatChunksWithoutWaitingInRealTime() {
         OllamaMockProperties properties = new OllamaMockProperties();
         properties.setDefaultModel(DEFAULT_MODEL);
+        properties.setModels(List.of("custom-chat-model"));
         properties.setTokenDelay(Duration.ofSeconds(1));
         ChatService delayedService = new ChatService(
                 properties,

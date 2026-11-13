@@ -1,6 +1,8 @@
 package com.awesome.testing.ollama.config;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
@@ -17,6 +19,11 @@ public class OllamaMockProperties {
      * Default model name when a request does not specify one.
      */
     private String defaultModel = "qwen3.5:2b";
+
+    /**
+     * Further model names the mock serves besides the default; any other model is answered with 404.
+     */
+    private List<String> models = new ArrayList<>();
 
     /**
      * Delay between streamed tokens to mimic incremental decoding.
