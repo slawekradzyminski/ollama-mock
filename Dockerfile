@@ -1,6 +1,8 @@
 # syntax=docker/dockerfile:1
 
-FROM eclipse-temurin:25-jdk-jammy@sha256:e4f029273ed9e4444697df30bb6098dbe51477291598aebc54dd0b48d95d6ae7 AS build
+# The jar is architecture-independent: compile it once on the build host's own platform instead of under QEMU
+# when publishing linux/arm64, so only the small runtime stage below is emulated.
+FROM --platform=$BUILDPLATFORM eclipse-temurin:25-jdk-jammy@sha256:e4f029273ed9e4444697df30bb6098dbe51477291598aebc54dd0b48d95d6ae7 AS build
 # OpenJDK CVE-2026-91403 mitigation; pinned artifact provenance is in security/java/.
 COPY security/java/blocked.certs ${JAVA_HOME}/lib/security/blocked.certs
 RUN echo "2596bb6dda83c66d96c5a252d7b2ae1f24cc1ae3f1890223b4f3591a8d52bf10  ${JAVA_HOME}/lib/security/blocked.certs" | sha256sum --check -
