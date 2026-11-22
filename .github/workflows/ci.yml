@@ -25,6 +25,14 @@ jobs:
           cache: maven
       - name: Verify application
         run: ./mvnw --batch-mode --no-transfer-progress verify
+
+  container:
+    # Separate job so the image build and smoke test run in parallel with the Maven verify job
+    # (the image build compiles the jar itself and does not depend on verify's output).
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7.0.1
       - name: Build runtime image
         run: docker build --tag ollama-mock:ci .
       - name: Verify container contract
